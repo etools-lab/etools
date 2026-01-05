@@ -245,17 +245,40 @@ jobs:
           codesign --verify --verbose "$TEMP_DMG_DIR/etools.app" 2>&1 || echo "签名验证警告（可忽略）"
 
           # 创建 DMG
-          echo "创建 DMG..."
+          echo "创建初始 DMG..."
+          TEMP_DMG="$DMG_DIR/etools_${VERSION}_universal_temp.dmg"
           hdiutil create \
             -volname "etools" \
             -srcfolder "$TEMP_DMG_DIR" \
             -ov \
             -format UDZO \
             -imagekey zlib-level=9 \
-            "$DMG_DIR/etools_${VERSION}_universal.dmg"
+            "$TEMP_DMG"
 
           # 清理临时目录
           rm -rf "$TEMP_DMG_DIR"
+
+          # 挂载 DMG 并重新签名内部的应用
+          echo "挂载 DMG 进行重新签名..."
+          MOUNT_OUTPUT=$(hdiutil attach "$TEMP_DMG" -readonly -nobrowse)
+          MOUNT_POINT=$(echo "$MOUNT_OUTPUT" | grep "/Volumes/" | head -1 | awk '{print $3}')
+
+          echo "DMG 挂载在: $MOUNT_POINT"
+
+          if [ -d "$MOUNT_POINT/etools.app" ]; then
+            echo "重新签名 DMG 内的应用..."
+            xattr -cr "$MOUNT_POINT/etools.app"
+            codesign --force --deep --sign - "$MOUNT_POINT/etools.app"
+            echo "验证签名..."
+            codesign -v "$MOUNT_POINT/etools.app" || true
+          fi
+
+          # 卸载
+          hdiutil detach "$MOUNT_POINT" -quiet
+
+          # 重命名为最终 DMG
+          FINAL_DMG="$DMG_DIR/etools_${VERSION}_universal.dmg"
+          mv "$TEMP_DMG" "$FINAL_DMG"
 
           # 显示 DMG 信息
           ls -lh "$DMG_DIR/"*.dmg
@@ -264,11 +287,11 @@ jobs:
       - name: Verify DMG
         run: |
           DMG_DIR="src-tauri/target/universal/release/bundle/dmg"
-          DMG_FILE=$(ls "$DMG_DIR/"*.dmg | head -1)
+          DMG_FILE=$(ls "$DMG_DIR/"*.dmg | grep -v temp | head -1)
 
-          echo "挂载 DMG 进行验证..."
+          echo "挂载 DMG 进行最终验证..."
           MOUNT_OUTPUT=$(hdiutil attach "$DMG_FILE" -readonly -nobrowse)
-          MOUNT_POINT=$(echo "$MOUNT_OUTPUT" | grep "/Volumes/" | awk '{print $3}')
+          MOUNT_POINT=$(echo "$MOUNT_OUTPUT" | grep "/Volumes/" | head -1 | awk '{print $3}')
 
           echo "DMG 挂载在: $MOUNT_POINT"
           echo "DMG 内容:"
@@ -280,13 +303,17 @@ jobs:
             echo "检查架构..."
             lipo -info "$MOUNT_POINT/etools.app/Contents/MacOS/etools"
             echo "检查签名..."
+            codesign -dv "$MOUNT_POINT/etools.app" | head -5
             codesign -v "$MOUNT_POINT/etools.app" || echo "签名状态: ad-hoc"
           else
             echo "❌ 未找到 etools.app"
+            exit 1
           fi
 
           # 卸载
           hdiutil detach "$MOUNT_POINT" -quiet
+
+          echo "✅ DMG 验证通过"
 
       # 上传 Universal 构建产物
       - name: Upload universal artifacts
