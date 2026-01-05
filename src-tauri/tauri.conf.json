@@ -92,6 +92,11 @@
     "targets": "all",
     "icon": [
       "icons/icon.png"
-    ]
+    ],
+    "macOS": {
+      "signingIdentity": null,
+      "entitlements": "entitlements.plist",
+      "hardenedRuntime": false
+    }
   }
 }
