@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(senior-frontend)",
+      "mcp__auggie-mcp__codebase-retrieval",
+      "mcp__filesystem__write_file",
+      "Skill(ui-design-system)",
+      "Skill(senior-qa)",
+      "Skill(webapp-testing)",
+      "mcp__filesystem__directory_tree",
+      "mcp__exa__web_search_exa",
+      "mcp__exa__get_code_context_exa",
+      "WebSearch"
+    ]
+  }
+}
