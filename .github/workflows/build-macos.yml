@@ -94,8 +94,19 @@ jobs:
         run: |
           pnpm tauri build --target ${{ matrix.target }}
         env:
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_PRIVATE_KEY: ""
+          TAURI_KEY_PASSWORD: ""
+
+      # 重新签名（ad-hoc 签名，避免无法打开）
+      - name: Re-sign app bundle
+        run: |
+          APP_BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle/macos/etools.app"
+          if [ -d "$APP_BUNDLE" ]; then
+            echo "重新签名 $APP_BUNDLE"
+            codesign --force --deep --sign - "$APP_BUNDLE"
+            echo "验证签名..."
+            codesign -v "$APP_BUNDLE" || true
+          fi
 
       # 上传构建产物
       - name: Upload architecture artifact
@@ -190,8 +201,15 @@ jobs:
           # 替换二进制文件为 Universal Binary
           cp "$UNIVERSAL_BINARY" "$UNIVERSAL_APP/Contents/MacOS/etools"
 
-          # 重新签名
-          codesign --force --deep --sign - "$UNIVERSAL_APP" 2>/dev/null || true
+          # 移除所有扩展属性和 quarantine 标志
+          xattr -cr "$UNIVERSAL_APP"
+
+          # 重新签名（ad-hoc）
+          echo "重新签名 Universal app..."
+          codesign --force --deep --sign - "$UNIVERSAL_APP"
+
+          # 验证签名
+          codesign -v "$UNIVERSAL_APP" || echo "签名验证完成"
 
           # 显示 .app 大小
           du -sh "$UNIVERSAL_APP"
@@ -208,13 +226,24 @@ jobs:
           # 获取版本号
           VERSION=$(node -p "require('./package.json').version")
 
+          # 创建临时目录（用于干净的 DMG）
+          TEMP_DMG_DIR="dmg_temp"
+          mkdir -p "$TEMP_DMG_DIR"
+          cp -R "$UNIVERSAL_APP" "$TEMP_DMG_DIR/"
+
+          # 清理 xattr
+          xattr -cr "$TEMP_DMG_DIR/etools.app"
+
           # 创建 DMG
           hdiutil create \
             -volname "etools" \
-            -srcfolder "$UNIVERSAL_APP" \
+            -srcfolder "$TEMP_DMG_DIR" \
             -ov \
             -format UDZO \
             "$DMG_DIR/etools_${VERSION}_universal.dmg"
+
+          # 清理临时目录
+          rm -rf "$TEMP_DMG_DIR"
 
           # 显示 DMG 信息
           ls -lh "$DMG_DIR/"*.dmg
