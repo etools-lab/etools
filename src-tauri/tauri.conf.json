@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Kaka",
+  "productName": "etools",
   "version": "0.1.0",
-  "identifier": "com.xuqi.kaka",
+  "identifier": "com.xuqi.etools",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Kaka",
+        "title": "etools",
         "width": 640,
         "height": 80,
         "minWidth": 400,
