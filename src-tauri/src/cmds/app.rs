@@ -135,6 +135,7 @@ pub fn get_app_icon(
 
 /// Get application icon on-demand using NSWorkspace API
 /// This is called when the icon is needed for display
+/// Returns PNG format for browser compatibility
 #[cfg(target_os = "macos")]
 #[tauri::command]
 pub fn get_app_icon_nsworkspace(app_path: String) -> Result<GetAppIconResponse, String> {
@@ -167,26 +168,45 @@ pub fn get_app_icon_nsworkspace(app_path: String) -> Result<GetAppIconResponse, 
             return Err("Failed to get icon from NSWorkspace".to_string());
         }
 
-        // Convert to TIFF representation (simplest and most reliable)
+        // Get image representation
         let tiff_data: *mut Object = msg_send![icon, TIFFRepresentation];
 
         if tiff_data.is_null() {
-            return Err("Failed to convert icon to TIFF".to_string());
+            return Err("Failed to get TIFF representation".to_string());
         }
 
-        let bytes: *const u8 = msg_send![tiff_data, bytes];
-        let length: usize = msg_send![tiff_data, length];
+        // Create NSBitmapImageRep from TIFF data
+        let bitmap_class = class!(NSBitmapImageRep);
+        let image_rep: *mut Object = msg_send![bitmap_class, imageRepWithData: tiff_data];
+
+        if image_rep.is_null() {
+            return Err("Failed to create bitmap image rep".to_string());
+        }
+
+        // Convert to PNG using NSBitmapImageRep
+        let png_data: *mut Object = msg_send![
+            image_rep,
+            representationUsingType: 4  // NSPNGFileType = 4
+            properties: std::ptr::null::<Object>()
+        ];
+
+        if png_data.is_null() {
+            return Err("Failed to convert to PNG".to_string());
+        }
+
+        let bytes: *const u8 = msg_send![png_data, bytes];
+        let length: usize = msg_send![png_data, length];
 
         if bytes.is_null() || length == 0 {
-            return Err("Failed to get icon data".to_string());
+            return Err("Failed to get PNG data".to_string());
         }
 
         let slice = std::slice::from_raw_parts(bytes, length);
         use base64::prelude::*;
         let base64_string = BASE64_STANDARD.encode(slice);
-        let data_url = format!("data:image/tiff;base64,{base64_string}");
+        let data_url = format!("data:image/png;base64,{base64_string}");
 
-        println!("[get_app_icon_nsworkspace] Successfully loaded icon for {}, size: {} bytes", app_path, length);
+        println!("[get_app_icon_nsworkspace] Successfully loaded PNG icon for {}, size: {} bytes", app_path, length);
 
         Ok(GetAppIconResponse {
             icon: Some(data_url.clone()),
