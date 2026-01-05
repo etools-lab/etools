@@ -87,8 +87,9 @@ impl AppMonitor {
             .map(|exe| contents_path.join("MacOS").join(exe))
             .unwrap_or_else(|| app_path.to_path_buf());
 
-        // Extract app icon (currently disabled, returns None)
-        let icon = self.extract_app_icon(&contents_path, &info_plist_path);
+        // Don't extract icon during scan to avoid blocking
+        // Icon will be loaded on-demand via NSWorkspace API
+        let icon = None;
 
         // Build alternate names: include .app filename if different from display name
         let alternate_names = if name != display_name {

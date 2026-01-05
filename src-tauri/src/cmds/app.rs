@@ -123,7 +123,7 @@ pub fn get_app_icon(
     let monitor = state.app_monitor.lock().map_err(|e| e.to_string())?;
 
     if let Some(app) = monitor.get_app(&app_id) {
-        // Icon is already extracted and cached as base64 data URL during app scanning
+        // Return cached icon if available, otherwise return None
         return Ok(GetAppIconResponse {
             icon: app.icon.clone(),
             icon_data_url: app.icon.clone(),
@@ -131,4 +131,78 @@ pub fn get_app_icon(
     }
 
     Err(format!("App not found: {}", app_id))
+}
+
+/// Get application icon on-demand using NSWorkspace API
+/// This is called when the icon is needed for display
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub fn get_app_icon_nsworkspace(app_path: String) -> Result<GetAppIconResponse, String> {
+    use objc::runtime::Object;
+    use objc::{class, msg_send, sel, sel_impl};
+
+    if app_path.is_empty() {
+        return Err("App path is empty".to_string());
+    }
+
+    unsafe {
+        // Get NSWorkspace shared workspace
+        let workspace = class!(NSWorkspace);
+        let shared_workspace: *mut Object = msg_send![workspace, sharedWorkspace];
+
+        // Create NSString from path
+        let ns_string_class = class!(NSString);
+        let ns_path: *mut Object = msg_send![
+            ns_string_class,
+            stringWithUTF8String: app_path.as_str()
+        ];
+
+        // Get icon for file using NSWorkspace
+        let icon: *mut Object = msg_send![
+            shared_workspace,
+            iconForFile: ns_path
+        ];
+
+        if icon.is_null() {
+            return Err("Failed to get icon".to_string());
+        }
+
+        // Convert NSImage to TIFF representation
+        let tiff_data: *mut Object = msg_send![
+            icon,
+            TIFFRepresentation
+        ];
+
+        if tiff_data.is_null() {
+            return Err("Failed to convert icon to TIFF".to_string());
+        }
+
+        // Get NSData bytes and length
+        let bytes: *const u8 = msg_send![tiff_data, bytes];
+        let length: usize = msg_send![tiff_data, length];
+
+        if bytes.is_null() || length == 0 {
+            return Err("Failed to get icon data".to_string());
+        }
+
+        // Create a slice from the raw pointer
+        let slice = std::slice::from_raw_parts(bytes, length);
+
+        // Convert to base64
+        use base64::prelude::*;
+        let base64_string = BASE64_STANDARD.encode(slice);
+
+        // Return as data URL (TIFF format)
+        Ok(GetAppIconResponse {
+            icon: Some(format!("data:image/tiff;base64,{base64_string}")),
+            icon_data_url: Some(format!("data:image/tiff;base64,{base64_string}")),
+        })
+    }
+}
+
+/// Fallback for non-macOS platforms
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+pub fn get_app_icon_nsworkspace(_app_path: String) -> Result<GetAppIconResponse, String> {
+    Err("Icon loading only supported on macOS".to_string())
 }

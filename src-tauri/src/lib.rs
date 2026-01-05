@@ -6,7 +6,7 @@ mod services;
 
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
-use cmds::app::{AppState, get_installed_apps, launch_app, track_app_usage, get_app_icon};
+use cmds::app::{AppState, get_installed_apps, launch_app, track_app_usage, get_app_icon, get_app_icon_nsworkspace};
 use cmds::search::{SearchState, unified_search, get_search_stats, search_files, search_browser_data, update_browser_cache, index_files, get_file_index_stats, start_file_indexer, stop_file_indexer};
 use cmds::clipboard::{get_clipboard_history, get_clipboard_item, paste_clipboard_item, delete_clipboard_item, clear_clipboard_history, get_clipboard_settings, set_clipboard_settings, search_clipboard};
 use cmds::plugins::{
@@ -416,6 +416,7 @@ pub fn run() {
             launch_app,
             track_app_usage,
             get_app_icon,
+            get_app_icon_nsworkspace,
             // Search commands
             unified_search,
             get_search_stats,
