@@ -125,77 +125,67 @@ impl AppMonitor {
         None
     }
 
-    /// Extract app icon from .app bundle and convert to base64 data URL
+    /// Extract app icon from .app bundle using NSWorkspace API
+    /// This is much faster than using iconutil command
     #[cfg(target_os = "macos")]
-    fn extract_app_icon(&self, contents_path: &Path, info_plist_path: &Path) -> Option<String> {
-        use std::process::Command;
+    fn extract_app_icon(&self, contents_path: &Path, _info_plist_path: &Path) -> Option<String> {
+        use objc::runtime::Object;
+        use objc::{class, msg_send, sel, sel_impl};
 
-        // Get icon filename from Info.plist
-        let icon_name = self.read_plist_value(info_plist_path, "CFBundleIconFile");
+        // Reconstruct the full .app path from contents_path
+        let app_path = contents_path.parent()?.parent()?;
+        let app_path_str = app_path.to_str()?;
 
-        // Build path to .icns file
-        let resources_path = contents_path.join("Resources");
-        let icns_path = if let Some(name) = &icon_name {
-            let path = resources_path.join(name);
-            if path.extension().is_some_and(|e| e == "icns") {
-                path
-            } else {
-                path.with_extension("icns")
+        unsafe {
+            // Get NSWorkspace shared workspace
+            let workspace = class!(NSWorkspace);
+            let shared_workspace: *mut Object = msg_send![workspace, sharedWorkspace];
+
+            // Create NSString from path
+            let ns_string_class = class!(NSString);
+            let ns_path: *mut Object = msg_send![
+                ns_string_class,
+                stringWithUTF8String: app_path_str
+            ];
+
+            // Get icon for file using NSWorkspace
+            let icon: *mut Object = msg_send![
+                shared_workspace,
+                iconForFile: ns_path
+            ];
+
+            if icon.is_null() {
+                return None;
             }
-        } else {
-            // Fallback to AppIcon.icns
-            resources_path.join("AppIcon.icns")
-        };
 
-        if !icns_path.exists() {
-            return None;
+            // Convert NSImage to TIFF representation
+            let tiff_data: *mut Object = msg_send![
+                icon,
+                TIFFRepresentation
+            ];
+
+            if tiff_data.is_null() {
+                return None;
+            }
+
+            // Get NSData bytes and length
+            let bytes: *const u8 = msg_send![tiff_data, bytes];
+            let length: usize = msg_send![tiff_data, length];
+
+            if bytes.is_null() || length == 0 {
+                return None;
+            }
+
+            // Create a slice from the raw pointer
+            let slice = std::slice::from_raw_parts(bytes, length);
+
+            // Convert to base64
+            use base64::prelude::*;
+            let base64_string = BASE64_STANDARD.encode(slice);
+
+            // Return as data URL (TIFF format)
+            Some(format!("data:image/tiff;base64,{base64_string}"))
         }
-
-        // Create temp directory for iconset
-        let temp_dir = std::env::var("TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
-        let iconset_dir = format!("{}/icon_{}.iconset", temp_dir, std::process::id());
-
-        // Convert .icns to .iconset using iconutil
-        let iconutil_output = Command::new("iconutil")
-            .args(["-c", "iconset", "-o", &iconset_dir, &icns_path.to_string_lossy()])
-            .output();
-
-        match iconutil_output {
-            Ok(result) if result.status.success() => {
-                // Try to get the best icon (prefer 64x64 or larger)
-                let icon_candidates = vec![
-                    format!("{}/icon_64x64.png", iconset_dir),
-                    format!("{}/icon_128x128.png", iconset_dir),
-                    format!("{}/icon_32x32@2x.png", iconset_dir),
-                    format!("{}/icon_128x128@2x.png", iconset_dir),
-                    format!("{}/icon_256x256.png", iconset_dir),
-                    format!("{}/icon_256x256@2x.png", iconset_dir),
-                    format!("{}/icon_512x512.png", iconset_dir),
-                    format!("{}/icon_32x32.png", iconset_dir),
-                ];
-
-                for candidate in icon_candidates {
-                    if let Ok(png_data) = fs::read(&candidate) {
-                        // Clean up iconset directory
-                        let _ = fs::remove_dir_all(&iconset_dir);
-
-                        // Convert to base64
-                        use base64::prelude::*;
-                        let base64_string = BASE64_STANDARD.encode(&png_data);
-                        return Some(format!("data:image/png;base64,{base64_string}"));
-                    }
-                }
-
-                // Clean up iconset directory
-                let _ = fs::remove_dir_all(&iconset_dir);
-            }
-            _ => {
-                // Clean up on failure
-                let _ = fs::remove_dir_all(&iconset_dir);
-            }
-        }
-
-        None
     }
 
     #[cfg(target_os = "windows")]
