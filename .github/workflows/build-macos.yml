@@ -236,10 +236,11 @@ jobs:
           rm -rf "$TEMP_DMG_DIR"
           mkdir -p "$TEMP_DMG_DIR"
 
-          # 复制并重新签名 .app
-          echo "复制并清理 .app..."
+          # 复制应用到临时目录
+          echo "复制应用..."
           cp -R "$UNIVERSAL_APP" "$TEMP_DMG_DIR/etools.app"
 
+          # 清理并签名临时目录中的应用
           echo "移除扩展属性..."
           xattr -cr "$TEMP_DMG_DIR/etools.app"
 
@@ -247,12 +248,12 @@ jobs:
           codesign --force --deep --sign - "$TEMP_DMG_DIR/etools.app"
 
           echo "验证签名..."
-          codesign --verify --verbose "$TEMP_DMG_DIR/etools.app" 2>&1 || echo "签名验证警告（可忽略）"
+          codesign -v "$TEMP_DMG_DIR/etools.app"
 
           # 创建 DMG
-          echo "创建初始 DMG..."
-          TEMP_DMG="$DMG_DIR/etools_${VERSION}_universal_temp.dmg"
-          rm -f "$TEMP_DMG" 2>/dev/null || true
+          echo "创建 DMG..."
+          FINAL_DMG="$DMG_DIR/etools_${VERSION}_universal.dmg"
+          rm -f "$FINAL_DMG" 2>/dev/null || true
 
           hdiutil create \
             -volname "etools" \
@@ -260,41 +261,13 @@ jobs:
             -ov \
             -format UDZO \
             -imagekey zlib-level=9 \
-            "$TEMP_DMG"
+            "$FINAL_DMG"
 
           # 清理临时目录
           rm -rf "$TEMP_DMG_DIR"
 
-          # 等待一秒确保文件系统同步
-          sleep 1
-
-          # 挂载 DMG 并重新签名内部的应用
-          echo "挂载 DMG 进行重新签名..."
-          MOUNT_OUTPUT=$(hdiutil attach "$TEMP_DMG" -readonly -nobrowse)
-          MOUNT_POINT=$(echo "$MOUNT_OUTPUT" | grep "/Volumes/" | head -1 | awk '{print $3}')
-
-          echo "DMG 挂载在: $MOUNT_POINT"
-
-          if [ -d "$MOUNT_POINT/etools.app" ]; then
-            echo "重新签名 DMG 内的应用..."
-            xattr -cr "$MOUNT_POINT/etools.app"
-            codesign --force --deep --sign - "$MOUNT_POINT/etools.app"
-            echo "验证签名..."
-            codesign -v "$MOUNT_POINT/etools.app" || true
-          fi
-
-          # 强制卸载
-          echo "卸载 DMG..."
-          hdiutil detach "$MOUNT_POINT" -force 2>/dev/null || true
-          sleep 1
-
-          # 重命名为最终 DMG
-          FINAL_DMG="$DMG_DIR/etools_${VERSION}_universal.dmg"
-          rm -f "$FINAL_DMG" 2>/dev/null || true
-          mv "$TEMP_DMG" "$FINAL_DMG"
-
           # 显示 DMG 信息
-          ls -lh "$DMG_DIR/"*.dmg
+          ls -lh "$FINAL_DMG"
 
       # 验证 DMG 内容
       - name: Verify DMG
