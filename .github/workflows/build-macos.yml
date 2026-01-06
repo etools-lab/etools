@@ -201,6 +201,9 @@ jobs:
           # 替换二进制文件为 Universal Binary
           cp "$UNIVERSAL_BINARY" "$UNIVERSAL_APP/Contents/MacOS/etools"
 
+          # 确保二进制文件有执行权限
+          chmod +x "$UNIVERSAL_APP/Contents/MacOS/etools"
+
           # 移除所有扩展属性和 quarantine 标志
           xattr -cr "$UNIVERSAL_APP"
 
@@ -239,6 +242,9 @@ jobs:
           # 复制应用到临时目录
           echo "复制应用..."
           cp -R "$UNIVERSAL_APP" "$TEMP_DMG_DIR/etools.app"
+
+          # 确保二进制文件有执行权限
+          chmod +x "$TEMP_DMG_DIR/etools.app/Contents/MacOS/etools"
 
           # 清理并签名临时目录中的应用
           echo "移除扩展属性..."
