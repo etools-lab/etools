@@ -1,0 +1,209 @@
+{
+  // ==========================================
+  // rust-analyzer 激进内存优化配置
+  // 目标: 将 6GB 内存占用降至 1-2GB
+  // ==========================================
+
+  // ==========================================
+  // 核心优化: 降低并发度 (最重要!)
+  // ==========================================
+  "rust-analyzer.numThreads": 1,
+
+  // ==========================================
+  // Proc Macro 优化 - 完全禁用以节省内存
+  // ==========================================
+  "rust-analyzer.procMacro.enable": false,
+  "rust-analyzer.procMacro.attributes.enable": false,
+  "rust-analyzer.procMacro.ignored": {
+    "tauri::": true,
+    "serde::": true,
+    "tokio::": true
+  },
+
+  // ==========================================
+  // Cargo 构建脚本 - 完全禁用
+  // ==========================================
+  "rust-analyzer.cargo.buildScripts.enable": false,
+  "rust-analyzer.cargo.buildScripts.useRustcWrapper": false,
+  "rust-analyzer.cargo.buildScripts.overrideCommand": null,
+
+  // ==========================================
+  // 基础设置 - 最小化
+  // ==========================================
+  "rust-analyzer.cargo.features": "all",
+  "rust-analyzer.cargo.loadOutDirsFromCheck": false,
+
+  // ==========================================
+  // 诊断优化 - 禁用实验性功能
+  // ==========================================
+  "rust-analyzer.diagnostics.enable": true,
+  "rust-analyzer.diagnostics.experimental.enable": false,
+  "rust-analyzer.diagnostics.disabled": [
+    "inactive-code",
+    "unresolved-proc-macro",
+    "macro-error",
+    "proc-macro-unused"
+  ],
+  "rust-analyzer.diagnostics.warningsAsHint": [
+    "unused_imports",
+    "dead_code",
+    "unused_variables"
+  ],
+
+  // ==========================================
+  // 完全禁用 Lens (代码透镜)
+  // ==========================================
+  "rust-analyzer.lens.enable": false,
+  "rust-analyzer.lens.run": false,
+  "rust-analyzer.lens.debug": false,
+  "rust-analyzer.lens.implementations": false,
+  "rust-analyzer.lens.references.adt": false,
+  "rust-analyzer.lens.references.enumVariant": false,
+  "rust-analyzer.lens.references.trait": false,
+  "rust-analyzer.lens.references.method": false,
+  "rust-analyzer.lens.methodReferences": false,
+  "rust-analyzer.lens.typeReferences": false,
+
+  // ==========================================
+  // 完全禁用 Hover 功能
+  // ==========================================
+  "rust-analyzer.hover.actions.enable": false,
+  "rust-analyzer.hover.documentation.enable": false,
+  "rust-analyzer.hover.linksInHover": false,
+  "rust-analyzer.hover.memoryLayout.enable": false,
+
+  // ==========================================
+  // 完全禁用 Inlay Hints
+  // ==========================================
+  "rust-analyzer.inlayHints.bindingModeHints.enable": false,
+  "rust-analyzer.inlayHints.chainingHints.enable": false,
+  "rust-analyzer.inlayHints.closingBraceHints.enable": false,
+  "rust-analyzer.inlayHints.closureReturnTypeHints.enable": "never",
+  "rust-analyzer.inlayHints.discriminantHints.enable": "never",
+  "rust-analyzer.inlayHints.expressionAdjustmentHints.enable": "never",
+  "rust-analyzer.inlayHints.implicitDroplets.enable": "never",
+  "rust-analyzer.inlayHints.lifetimeElisionHints.enable": "never",
+  "rust-analyzer.inlayHints.parameterHints.enable": false,
+  "rust-analyzer.inlayHints.reborrowHints.enable": "never",
+  "rust-analyzer.inlayHints.typeHints.enable": false,
+
+  // ==========================================
+  // 代码补全 - 最小化
+  // ==========================================
+  "rust-analyzer.completion.autoimport.enable": false,
+  "rust-analyzer.completion.autoself.enable": false,
+  "rust-analyzer.completion.callable.snippets": "none",
+  "rust-analyzer.completion.fullFunctionSignatures.enable": false,
+  "rust-analyzer.completion.postfix.enable": false,
+  "rust-analyzer.completion.privateEditable.enable": false,
+  "rust-analyzer.completion.snippets.custom": {},
+  "rust-analyzer.completion.limit": 50,
+
+  // ==========================================
+  // 语义高亮 - 完全禁用
+  // ==========================================
+  "rust-analyzer.semanticHighlighting.strings.enable": false,
+  "rust-analyzer.semanticHighlighting.punctuation.enable": false,
+  "rust-analyzer.semanticHighlighting.operator.enable": false,
+
+  // ==========================================
+  // 签名帮助 - 禁用文档
+  // ==========================================
+  "rust-analyzer.signatureInfo.detail": "short",
+  "rust-analyzer.signatureInfo.documentation.enable": false,
+
+  // ==========================================
+  // 工作空间符号 - 大幅限制
+  // ==========================================
+  "rust-analyzer.workspace.symbol.search.scope": "workspace",
+  "rust-analyzer.workspace.symbol.search.kind": "only_types",
+  "rust-analyzer.workspace.symbol.search.limit": 32,
+
+  // ==========================================
+  // 编译优化 - 使用 check 模式 (终极版)
+  // ==========================================
+  "rust-analyzer.cargo.extraArgs": [
+    "--profile",
+    "dev"
+  ],
+  "rust-analyzer.checkOnSave.command": "check",
+  "rust-analyzer.checkOnSave.allTargets": false,
+  "rust-analyzer.checkOnSave.extraArgs": [
+    "--no-deps",
+    "--quiet"
+  ],
+  "rust-analyzer.checkOnSave.features": "all",
+  "rust-analyzer.checkOnSave.analyzerTargets": null,
+  // 禁用工作空间加载
+  "rust-analyzer.cargo.noSysroot": true,
+  // 不使用 Rustc 源码
+  "rust-analyzer.rustc.source": null,
+  // 禁用 Cargo 目标自动发现
+  "rust-analyzer.cargo.autoloadScripts": false,
+
+  // ==========================================
+  // 代码分析 - 最小化 (终极版)
+  // ==========================================
+  "rust-analyzer.analysis.passes": {
+    "adhoc": false,
+    "bailouts": true,
+    "macro_annotation": false
+  },
+  "rust-analyzer.analysis.featureFlags": false,
+  "rust-analyzer.analysis.maxTargetHeight": 20,
+  "rust-analyzer.analysis.parallel": "choke",
+  // 禁用类型推导缓存
+  "rust-analyzer.typing.continueCommentsOnNewline": false,
+
+  // ==========================================
+  // 辅助功能 - 最小化
+  // ==========================================
+  "rust-analyzer.assist.expressionFillDefault": "todo",
+  "rust-analyzer.assist.importMergeBehavior": "crate",
+  "rust-analyzer.assist.importPrefix": "crate",
+  "rust-analyzer.imports.granularity.group": "crate",
+  "rust-analyzer.imports.prefix": "crate",
+
+  // ==========================================
+  // 文件监控
+  // ==========================================
+  "rust-analyzer.files.watcher": "client",
+
+  // ==========================================
+  // 排除更多文件 - 终极优化
+  // ==========================================
+  "rust-analyzer.excludeGlobs": [
+    "**/node_modules",
+    "**/target",
+    "**/dist",
+    "**/build",
+    "**/*.generated.rs",
+    "**/tests/**",
+    "**/benches/**",
+    "**/examples/**",
+    "**/*_test.rs",
+    // 排除第三方依赖代码
+    "**/.cargo/registry/**",
+    "**/vendor/**"
+  ],
+
+  // ==========================================
+  // 高级优化 - 环境变量 (终极版)
+  // ==========================================
+  "rust-analyzer.server.extraEnv": {
+    "CHALK_DEBUG": "",
+    "RA_LLVM_CPU": "1",
+    "RA_NO_WATCH": "true",
+    // 限制内存分配器
+    "MALLOC_ARENA_MAX": "2",
+    // 禁用 jemalloc (如果启用)
+    "_RJSM_MALLOC_ARENA_MAX": "2",
+    // 限制 Rust 全局分配器
+    "RUST_ANALYZER_MAX_MEMORY": "2147483648"
+  },
+
+  // TypeScript/前端相关
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": false,
+  "vite.devServer.port": 1420
+}
