@@ -1,43 +1,94 @@
 # etools - Productivity Launcher
 
-一个现代化的桌面生产力启动器，使用 Tauri + React + TypeScript 构建。
+<div align="center">
 
-## 项目特点
+**一个现代化的桌面生产力启动器**
 
-- **独立开发**: 所有代码和设计均为原创，使用现代技术栈独立构建
-- **开源免费**: 采用 MIT License，欢迎社区贡献
-- **跨平台**: 支持 macOS、Windows 和 Linux
-- **高性能**: Rust 后端确保毫秒级响应速度
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)](https://tauri.app/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
+
+[English](./README_EN.md) | 简体中文
+
+</div>
+
+---
+
+##  项目概述
+
+etools 是一个类似 uTools 的桌面生产力启动器，通过全局快捷键快速唤醒，提供应用程序搜索、文件系统搜索、浏览器书签、剪贴板历史等功能。内置可扩展的插件系统，支持自定义功能扩展。
+
+### 核心特性
+
+- **跨平台支持** - macOS、Windows、Linux
+- **毫秒级响应** - Rust 后端 + Fuse.js 模糊搜索
+- **可扩展架构** - 完整的插件系统和插件管理器
+- **原生体验** - 透明窗口、全局快捷键、系统托盘
+- **主题系统** - 浅色/深色/跟随系统主题
+
+---
 
 ## 功能特性
 
 ### 核心功能
 
-- **全局快捷键**: 按 `Option+Space` (macOS) 或 `Alt+Space` (Windows/Linux) 快速打开搜索窗口
-- **多源搜索**:
-  - 应用程序搜索
-  - 文件系统搜索
-  - 浏览器书签搜索
-  - 剪贴板历史
-- **智能快捷操作**:
-  - 内置计算器: 直接输入数学表达式 (如 `2+2`, `100*5%`)
-  - 颜色转换: 支持颜色格式转换 (Hex, RGB, HSL)
-  - 网页搜索快捷前缀 (`g:`, `ddg:`, `gh:`, `so:`)
-- **主题系统**: 支持浅色/深色/跟随系统主题
-- **插件系统**: 可扩展的插件架构
-  - **插件管理器**: 可视化插件管理界面
-  - **插件市场**: 浏览和安装社区插件
-  - **批量操作**: 批量启用/禁用/卸载插件
-  - **健康监控**: 实时监控插件运行状态
-  - **多源安装**: 支持本地文件、URL、NPM包等多种安装方式
+#### 全局快捷键
+- `Option+Space` (macOS) / `Alt+Space` (Windows/Linux) - 快速打开搜索窗口
+- `Cmd+Shift+P` (macOS) / `Ctrl+Shift+P` (Windows/Linux) - 打开插件管理器
+
+#### 多源搜索
+- **应用程序搜索** - 快速启动已安装的应用
+- **文件系统搜索** - 基于文件索引的快速文件查找
+- **浏览器书签** - 支持主流浏览器书签搜索
+- **剪贴板历史** - 历史剪贴板内容快速访问
+
+#### 智能快捷操作
+- **内置计算器** - 直接输入数学表达式（如 `2+2`、`100*5%`）
+- **颜色转换** - 支持 Hex、RGB、HSL 格式转换
+- **网页搜索** - 快捷前缀搜索（`g:` Google、`ddg:` DuckDuckGo、`gh:` GitHub、`so:` Stack Overflow）
+
+### 插件系统
+
+#### 插件管理器
+完整的可视化插件管理界面：
+
+- **已安装插件视图**
+  - 状态筛选（全部、已启用、已禁用、有问题）
+  - 类别筛选（生产力、开发工具、系统工具等）
+  - 健康状态指示器（绿色/黄色/红色）
+  - 使用统计（使用次数、最后使用时间）
+
+- **插件详情面板**
+  - 完整插件信息（名称、版本、作者、描述）
+  - 权限列表和状态
+  - 健康状态和错误日志
+  - 配置参数编辑
+
+- **插件市场**
+  - 浏览社区插件
+  - 按类别和评分筛选
+  - 一键安装
+
+- **批量操作**
+  - 批量启用/禁用插件
+  - 批量卸载插件
+  - 实时进度显示
+
+- **多源安装**
+  - 本地文件夹安装
+  - URL 远程安装
+  - NPM 包安装
+
+#### 内置插件
+
+- `hello-world` - 示例插件
+- `qrcode` - 二维码生成器
+- `json-formatter` - JSON 格式化工具
+- `timestamp` - 时间戳转换
+- `regex-tester` - 正则表达式测试
+- `sandbox-demo` - 沙箱环境演示
 
 ### 快捷键
-
-#### 全局快捷键
-| 快捷键 | 功能 |
-|--------|------|
-| `Option+Space` / `Alt+Space` | 打开/关闭搜索窗口 |
-| `Cmd+Shift+P` | 打开插件管理器 |
 
 #### 搜索窗口
 | 快捷键 | 功能 |
@@ -58,66 +109,58 @@
 | `Esc` | 清除选择/退出详情面板 |
 | `Cmd+Shift+A` | 切换批量选择模式 |
 
-### 网页搜索前缀
-
-| 前缀 | 搜索引擎 |
-|------|----------|
-| `g:` | Google |
-| `ddg:` | DuckDuckGo |
-| `gh:` | GitHub |
-| `so:` | Stack Overflow |
+---
 
 ## 技术栈
 
 ### 前端
-
-- **框架**: React 19
-- **语言**: TypeScript 5.8+
-- **构建工具**: Vite 7
-- **样式**: CSS Modules + Design Tokens
-- **搜索**: Fuse.js (模糊搜索)
+- **框架** - React 19
+- **语言** - TypeScript 5.8+
+- **构建工具** - Vite 7
+- **样式** - CSS Modules + Design Tokens
+- **状态管理** - Zustand
+- **模糊搜索** - Fuse.js 7.0
 
 ### 后端
-
-- **框架**: Tauri 2
-- **语言**: Rust 1.75+
-- **数据库**: SQLite (rusqlite)
+- **框架** - Tauri 2.0
+- **语言** - Rust 1.75+
+- **数据库** - SQLite (rusqlite 0.32)
   - 文件索引数据库
   - 浏览器缓存数据库
   - 剪贴板历史数据库
+  - 插件状态存储
+- **异步运行时** - Tokio
 
-### 插件依赖
+### Tauri 插件
+- `tauri-plugin-global-shortcut` - 全局快捷键
+- `tauri-plugin-shell` - Shell 集成
+- `tauri-plugin-clipboard-manager` - 剪贴板管理
 
-- `tauri-plugin-global-shortcut`: 全局快捷键
-- `tauri-plugin-shell`: Shell 集成
-- `tauri-plugin-clipboard-manager`: 剪贴板管理
+---
 
-## 开发
+## 快速开始
 
 ### 前置要求
 
 - Node.js 18+
 - Rust 1.75+
-- pnpm (推荐) 或 npm
+- pnpm（推荐）或 npm
 
 ### 安装依赖
 
 ```bash
 # 安装前端依赖
 pnpm install
-
-# 或使用 npm
-npm install
 ```
 
 ### 开发模式
 
 ```bash
-# 启动开发服务器
+# 启动开发服务器（前端 + Tauri 后端）
 pnpm tauri dev
 
-# 或使用 npm
-npm run tauri dev
+# 仅启动前端开发服务器
+pnpm dev
 ```
 
 ### 构建生产版本
@@ -126,193 +169,224 @@ npm run tauri dev
 # 构建应用
 pnpm tauri build
 
-# 或使用 npm
-npm run tauri build
+# 仅构建前端
+pnpm build
 ```
 
 构建产物位于 `src-tauri/target/release/bundle/`
 
+---
+
 ## 项目结构
 
 ```
-kaka/
-├── src/                          # 前端源码
-│   ├── components/              # React 组件
-│   │   ├── SearchWindow.tsx     # 搜索窗口主组件
-│   │   ├── SettingsPanel.tsx    # 设置面板
-│   │   ├── HotkeyEditor.tsx     # 快捷键编辑器
-│   │   ├── ThemeSelector.tsx    # 主题选择器
-│   │   ├── HelpModal.tsx        # 帮助模态框
-│   │   ├── PluginManager/       # 插件管理器组件
-│   │   │   ├── PluginManager.tsx        # 主管理器入口
-│   │   │   ├── InstalledPluginsView.tsx # 已安装插件视图
-│   │   │   ├── MarketplaceView.tsx      # 插件市场视图
-│   │   │   ├── PluginDetailPanel.tsx    # 插件详情面板
-│   │   │   ├── BulkActionsToolbar.tsx   # 批量操作工具栏
-│   │   │   ├── InstallDialog.tsx        # 安装对话框
-│   │   │   ├── PluginListItem.tsx       # 插件列表项
-│   │   │   └── NotificationSystem.tsx   # 通知系统
-│   │   └── ui/                  # UI 基础组件
-│   ├── hooks/                   # React Hooks
-│   │   ├── useSearch.ts         # 搜索逻辑
+etools/
+├── src/                          # 前端源码 (144 文件, ~20,000 行)
+│   ├── components/               # React 组件 (~8,000 行)
+│   │   ├── SearchWindow.tsx      # 主搜索窗口 (640x400)
+│   │   ├── SettingsPanel.tsx     # 设置面板 (700x600)
+│   │   ├── PluginManager/        # 插件管理器组件群
+│   │   │   ├── PluginManager.tsx         # 主管理器入口
+│   │   │   ├── InstalledPluginsView.tsx  # 已安装插件视图
+│   │   │   ├── MarketplaceView.tsx       # 插件市场视图
+│   │   │   ├── PluginDetailPanel.tsx     # 插件详情面板
+│   │   │   ├── BulkActionsToolbar.tsx    # 批量操作工具栏
+│   │   │   └── NotificationSystem.tsx    # 通知系统
+│   │   └── ui/                  # UI 基础组件库
+│   │       ├── Button.tsx
+│   │       ├── Input.tsx
+│   │       ├── Badge.tsx
+│   │       ├── Spinner.tsx
+│   │       └── Kbd.tsx
+│   ├── hooks/                   # 自定义 React Hooks (11 个)
+│   │   ├── useSearch.ts         # 搜索逻辑 (防抖 + Fuse.js)
 │   │   ├── useTheme.ts          # 主题管理
 │   │   ├── useKeyboardShortcuts.ts  # 键盘快捷键
-│   │   ├── useDebounce.ts       # 防抖处理
-│   │   └── usePluginState.ts    # 插件状态管理
-│   ├── services/                # 服务层
+│   │   ├── usePluginState.ts    # 插件状态管理
+│   │   └── useBulkSelection.ts  # 批量选择功能
+│   ├── services/                # 业务逻辑服务层 (~4,300 行)
 │   │   ├── searchService.ts     # 搜索服务
 │   │   ├── actionService.ts     # 快捷操作服务
 │   │   ├── pluginManager.ts     # 插件管理服务
+│   │   ├── pluginStateStore.ts  # 插件状态存储 (Zustand)
 │   │   ├── marketplaceService.ts # 插件市场服务
-│   │   └── pluginStateStore.ts  # 插件状态存储
-│   ├── styles/                  # 样式文件
+│   │   └── errorLogger.ts       # 错误日志服务
+│   ├── lib/                     # 工具库
+│   │   └── plugins/             # 内置插件
+│   │       ├── hello-world/
+│   │       ├── qrcode/
+│   │       ├── json-formatter/
+│   │       ├── timestamp/
+│   │       ├── regex-tester/
+│   │       └── sandbox-demo/
+│   ├── styles/                  # 样式文件 (57 个文件)
 │   │   ├── design-tokens.css    # 设计变量
 │   │   ├── theme-light.css      # 浅色主题
 │   │   └── theme-dark.css       # 深色主题
-│   └── types/                   # TypeScript 类型定义
-│       └── plugin.ts            # 插件类型定义
+│   ├── types/                   # TypeScript 类型定义
+│   │   ├── plugin.ts
+│   │   ├── search.ts
+│   │   └── clipboard.ts
+│   ├── App.tsx                  # 应用入口
+│   └── main.tsx                 # React 挂载点
 │
-├── src-tauri/                   # Rust 后端
+├── src-tauri/                   # Rust 后端 (38 文件, ~12,000 行)
 │   ├── src/
-│   │   ├── cmds/               # Tauri 命令
-│   │   │   ├── plugin_commands.rs  # 插件相关命令
-│   │   │   └── marketplace_commands.rs # 市场相关命令
-│   │   ├── db/                 # 数据库模块
+│   │   ├── cmds/               # Tauri 命令处理器 (~3,800 行)
+│   │   │   ├── app.rs          # 应用程序发现、启动、图标
+│   │   │   ├── search.rs       # 文件搜索、索引、浏览器数据
+│   │   │   ├── clipboard.rs    # 剪贴板历史管理
+│   │   │   ├── plugins.rs      # 插件生命周期管理
+│   │   │   ├── marketplace.rs  # 插件市场功能
+│   │   │   ├── settings.rs     # 用户设置管理
+│   │   │   ├── window.rs       # 窗口状态管理
+│   │   │   ├── shell.rs        # Shell 操作
+│   │   │   ├── abbreviation.rs # 缩写词管理
+│   │   │   ├── performance.rs  # 性能监控
+│   │   │   └── mod.rs          # 模块导出
+│   │   ├── services/           # 业务服务层 (~5,200 行)
+│   │   │   ├── app_monitor.rs         # 应用程序监控
+│   │   │   ├── file_indexer.rs        # 文件系统索引 (notify 监控)
+│   │   │   ├── browser_reader.rs      # 浏览器数据读取
+│   │   │   ├── clipboard_watcher.rs   # 剪贴板监控
+│   │   │   ├── plugin_sandbox.rs      # 插件沙箱环境
+│   │   │   ├── plugin_service.rs      # 插件管理核心
+│   │   │   ├── marketplace_service.rs # 插件市场服务
+│   │   │   └── performance.rs         # 性能监控服务
+│   │   ├── db/                 # 数据库层
+│   │   │   ├── files.rs        # 文件索引数据库
+│   │   │   └── browser.rs      # 浏览器缓存数据库
 │   │   ├── models/             # 数据模型
-│   │   └── services/           # 后端服务
-│   │       ├── clipboard_watcher.rs  # 剪贴板监控
-│   │       ├── file_indexer.rs       # 文件索引
-│   │       ├── browser_reader.rs     # 浏览器数据读取
-│   │       └── plugin_manager.rs     # 插件管理服务
+│   │   │   ├── plugin.rs       # 插件数据模型
+│   │   │   ├── app.rs          # 应用程序数据模型
+│   │   │   ├── clipboard.rs    # 剪贴板数据模型
+│   │   │   └── preferences.rs  # 用户偏好设置
+│   │   ├── lib.rs              # Tauri 入口 (命令注册)
+│   │   └── error.rs            # 错误处理
 │   ├── Cargo.toml              # Rust 依赖配置
-│   └── tauri.conf.json         # Tauri 配置
+│   └── tauri.conf.json         # Tauri 配置 (窗口、权限、构建)
 │
-├── specs/                       # 项目规格文档
+├── example-plugins/            # 示例插件
+├── e2e/                        # E2E 测试 (Playwright)
+├── specs/                      # 项目规格文档
 │   └── 001-productivity-launcher/
 │       ├── spec.md             # 功能规格
 │       ├── plan.md             # 设计方案
 │       └── tasks.md            # 任务列表
 │
-└── openspec/                    # OpenSpec 工作流
+├── package.json                # 前端依赖配置
+├── vite.config.ts              # Vite 构建配置 (代码分割)
+├── tsconfig.json               # TypeScript 配置
+├── CLAUDE.md                   # Claude Code 项目指南
+├── CONTRIBUTING.md             # 贡献指南
+├── CODEOWNERS                  # 代码所有者
+├── SECURITY.md                 # 安全策略
+└── README.md                   # 本文件
 ```
 
-## 配置
+### 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Frontend (React)                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Components │  │    Hooks     │  │   Services   │      │
+│  │  (~8,000 行) │  │   (11 hooks) │  │  (~4,300 行) │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────┬───────────────────────────────┘
+                              │ Tauri IPC
+                              │ invoke / events
+┌─────────────────────────────┴───────────────────────────────┐
+│                      Backend (Rust/Tauri)                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │   Commands   │  │   Services   │  │  DB / Models │      │
+│  │  (~3,800 行) │  │  (~5,200 行) │  │   (SQLite)   │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 窗口架构
+
+应用包含以下窗口：
+
+- **main** - 主搜索窗口 (640x400)
+  - 透明、无边框、置顶
+  - 居中显示在主显示器
+
+- **settings** - 设置面板 (700x600)
+  - 主题设置、快捷键设置
+
+- **plugin-popup** - 插件自定义 UI 弹窗 (480x400)
+  - 插件专用界面
+
+---
+
+## 配置说明
 
 ### 主题设置
 
 应用支持三种主题模式：
-- **跟随系统**: 自动切换浅色/深色主题
-- **浅色**: 始终使用浅色主题
-- **深色**: 始终使用深色主题
+- **跟随系统** - 自动切换浅色/深色主题
+- **浅色** - 始终使用浅色主题
+- **深色** - 始终使用深色主题
 
 主题配置保存在 `localStorage` 中。
 
-### 快捷键设置
-
-可以在设置面板中自定义全局快捷键。
-
 ### 搜索配置
 
-- **搜索防抖延迟**: 输入后等待时间 (默认: 150ms)
-- **最大结果数**: 显示的最大搜索结果数 (默认: 8)
+- **搜索防抖延迟** - 输入后等待时间（默认: 150ms）
+- **最大结果数** - 显示的最大搜索结果数（默认: 8）
 
-## 插件管理
+### 文件索引排除目录
 
-### 插件管理器功能
+默认排除以下目录：
+- `node_modules`
+- `.git`
+- `target`
+- `dist`
+- `build`
+- `.cache`
 
-插件管理器提供完整的插件生命周期管理功能：
+---
 
-#### 1. 插件浏览与查看
-
-- **已安装插件视图**: 显示所有已安装的插件列表
-  - 按状态筛选（全部、已启用、已禁用、有问题）
-  - 按类别筛选（生产力、开发工具、系统工具、娱乐等）
-  - 搜索和过滤功能
-  - 健康状态指示器（绿色=健康，黄色=警告，红色=错误）
-
-- **插件详情面板**:
-  - 插件完整信息（名称、版本、作者、描述）
-  - 权限列表和使用状态
-  - 健康状态和错误日志
-  - 使用统计（使用次数、最后使用时间）
-  - 配置参数编辑
-
-#### 2. 插件安装
-
-支持多种安装方式：
-
-- **从插件市场安装**:
-  - 浏览社区插件
-  - 按类别和评分筛选
-  - 一键安装
-
-- **本地文件安装**:
-  - 支持选择插件文件夹
-  - 自动验证 plugin.toml 配置
-
-- **URL 安装**:
-  - 直接输入插件仓库 URL
-  - 自动下载和安装
-
-- **NPM 包安装**:
-  - 支持 `npm install` 风格的包名
-  - 自动解析和安装依赖
-
-#### 3. 批量操作
-
-- **批量启用/禁用**: 选择多个插件进行操作
-- **批量卸载**: 同时卸载多个插件
-- **操作进度显示**: 实时显示批量操作进度和结果
-- **部分失败处理**: 显示成功和失败的插件列表
-
-#### 4. 插件健康监控
-
-- **实时状态检查**:
-  - 自动检测插件崩溃
-  - 检测资源使用异常
-  - 验证插件响应时间
-
-- **健康状态等级**:
-  - `healthy`: 插件运行正常
-  - `warning`: 插件有问题但仍可运行
-  - `error`: 插件出现严重错误
-  - `unknown`: 状态未知（新安装或未检查）
-
-#### 5. 插件配置
-
-- **权限管理**:
-  - 查看插件请求的权限
-  - 授予/撤销权限
-  - 文件系统、网络、Shell 等权限类型
-
-- **参数配置**:
-  - 编辑插件配置参数
-  - 支持多种数据类型（字符串、数字、布尔值）
-  - 实时保存
+## 插件开发
 
 ### 插件 API
 
+#### Tauri 命令
+
 插件可以访问以下 Tauri 命令：
 
-- `plugin_list`: 列出已安装插件
-- `plugin_install`: 安装新插件
-- `plugin_enable`: 启用插件
-- `plugin_disable`: 禁用插件
-- `plugin_uninstall`: 卸载插件
-- `plugin_get_health`: 获取插件健康状态
-- `plugin_check_health`: 检查插件健康状态
-- `plugin_get_usage_stats`: 获取使用统计
-- `plugin_bulk_enable`: 批量启用插件
-- `plugin_bulk_disable`: 批量禁用插件
-- `plugin_bulk_uninstall`: 批量卸载插件
-- `plugin_update_config`: 更新插件配置
-- `plugin_grant_permission`: 授予权限
-- `plugin_revoke_permission`: 撤销权限
-- `marketplace_get_plugins`: 获取市场插件列表
-- `marketplace_search`: 搜索市场插件
-- `marketplace_install`: 安装市场插件
+```typescript
+// 插件生命周期管理
+invoke('plugin_list')
+invoke('plugin_install', { source, options })
+invoke('plugin_enable', { pluginId })
+invoke('plugin_disable', { pluginId })
+invoke('plugin_uninstall', { pluginId })
 
-### 插件开发
+// 健康监控
+invoke('plugin_get_health', { pluginId })
+invoke('plugin_check_health', { pluginId })
+invoke('plugin_get_usage_stats', { pluginId })
+
+// 批量操作
+invoke('plugin_bulk_enable', { pluginIds })
+invoke('plugin_bulk_disable', { pluginIds })
+invoke('plugin_bulk_uninstall', { pluginIds })
+
+// 配置管理
+invoke('plugin_update_config', { pluginId, config })
+invoke('plugin_grant_permission', { pluginId, permission })
+invoke('plugin_revoke_permission', { pluginId, permission })
+
+// 插件市场
+invoke('marketplace_get_plugins')
+invoke('marketplace_search', { query })
+invoke('marketplace_install', { pluginId })
+```
+
+#### 插件类型定义
 
 ```typescript
 interface Plugin {
@@ -325,18 +399,58 @@ interface Plugin {
   triggers: string[];
   settings: PluginSetting[];
   enabled: boolean;
+  healthStatus: 'healthy' | 'warning' | 'error' | 'unknown';
+}
+
+interface PluginSearchResult {
+  id: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  action: () => void | Promise<void>;
 }
 ```
 
-### 插件 API
+### 创建插件
 
-插件可以访问以下 Tauri 命令：
+1. 在 `src/lib/plugins/` 或 `example-plugins/` 创建插件目录
+2. 实现 `index.ts` 导出 `manifest` 和 `search` 函数
+3. 可选：实现 `ui.tsx` 自定义 UI 组件
 
-- `plugin_list`: 列出已安装插件
-- `plugin_install`: 安装新插件
-- `plugin_enable`: 启用插件
-- `plugin_disable`: 禁用插件
-- `plugin_uninstall`: 卸载插件
+#### 示例插件
+
+```typescript
+// src/lib/plugins/my-plugin/index.ts
+import { Plugin, PluginSearchResult } from '@/types/plugin';
+
+export const manifest: Plugin = {
+  id: 'my-plugin',
+  name: 'My Plugin',
+  version: '1.0.0',
+  description: 'My awesome plugin',
+  author: 'Your Name',
+  permissions: [],
+  triggers: ['my'],
+  settings: [],
+  enabled: true,
+  healthStatus: 'unknown',
+};
+
+export async function search(query: string): Promise<PluginSearchResult[]> {
+  if (!query.startsWith('my ')) return [];
+
+  return [{
+    id: 'my-result',
+    title: 'My Result',
+    description: 'Click me!',
+    action: () => {
+      console.log('Action executed!');
+    },
+  }];
+}
+```
+
+---
 
 ## 常见问题
 
@@ -350,33 +464,94 @@ interface Plugin {
 }
 ```
 
-### 文件索引排除目录
+### 开发调试
 
-默认排除以下目录：
-- `node_modules`
-- `.git`
-- `target`
-- `dist`
-- `build`
-- `.cache`
+#### 前端调试
+- 开发模式下自动打开浏览器 DevTools
+- 使用 `write_debug_log` 命令输出日志
 
-## 许可证
+#### 后端调试
+- 使用 `println!` 或 `log::info!` 输出到终端
+- 检查 `src-tauri/target/debug/` 中的日志
 
-MIT License
+#### Tauri IPC 调试
+- 在 `lib.rs` 的 `invoke_handler` 中添加日志
+- 使用 Tauri DevTools 监控 IPC 调用
+
+---
+
+## 测试
+
+### 单元测试
+
+```bash
+# 运行单元测试 (Vitest)
+pnpm test
+
+# 运行测试并打开 UI 界面
+pnpm test:ui
+
+# 生成测试覆盖率报告
+pnpm test:coverage
+```
+
+### E2E 测试
+
+```bash
+# 运行 E2E 测试 (Playwright)
+pnpm test:e2e
+
+# 运行 E2E 测试并打开 UI 界面
+pnpm test:e2e:ui
+```
+
+### Rust 测试
+
+```bash
+# 在 src-tauri 目录下运行
+cargo test
+```
+
+### 代码检查
+
+```bash
+# 前端代码检查
+pnpm lint
+
+# Rust 代码检查
+cd src-tauri && cargo clippy
+```
+
+---
+
+## 开源信息
+
+- **许可证** - [MIT License](./LICENSE)
+- **资源管理** - 详见 [ASSETS.md](./ASSETS.md)
+- **第三方声明** - 详见 [NOTICES.md](./NOTICES.md)
+- **知识产权管理** - 详见 [LEGAL-RISK-ASSESSMENT.md](./LEGAL-RISK-ASSESSMENT.md)
+
+---
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交 Issue 和 Pull Request！详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+---
 
 ## 致谢
 
 - [Tauri](https://tauri.app/) - 跨平台桌面应用框架
 - [React](https://react.dev/) - UI 框架
 - [Fuse.js](https://fusejs.io/) - 模糊搜索库
+- [Vite](https://vitejs.dev/) - 构建工具
 
-## 开源信息
+---
 
-- **许可证**: MIT License - 详见 [LICENSE](./LICENSE)
-- **资源管理**: 详见 [ASSETS.md](./ASSETS.md)
-- **第三方声明**: 详见 [NOTICES.md](./NOTICES.md)
-- **知识产权管理**: 详见 [LEGAL-RISK-ASSESSMENT.md](./LEGAL-RISK-ASSESSMENT.md)
+<div align="center">
+
+**Made with ❤️ by [Chee-0806](https://github.com/Chee-0806)**
+
+[⬆ 返回顶部](#etools---productivity-launcher)
+
+</div>
