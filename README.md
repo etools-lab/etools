@@ -1,6 +1,13 @@
 # etools - Productivity Launcher
 
-一个现代化的桌面生产力启动器，类似于 uTools，使用 Tauri + React + TypeScript 构建。
+一个现代化的桌面生产力启动器，使用 Tauri + React + TypeScript 构建。
+
+## 项目特点
+
+- **独立开发**: 所有代码和设计均为原创，使用现代技术栈独立构建
+- **开源免费**: 采用 MIT License，欢迎社区贡献
+- **跨平台**: 支持 macOS、Windows 和 Linux
+- **高性能**: Rust 后端确保毫秒级响应速度
 
 ## 功能特性
 
@@ -364,4 +371,12 @@ MIT License
 ## 致谢
 
 - [Tauri](https://tauri.app/) - 跨平台桌面应用框架
-- [uTools](https://u.tools/) - 设计灵感来源
+- [React](https://react.dev/) - UI 框架
+- [Fuse.js](https://fusejs.io/) - 模糊搜索库
+
+## 开源信息
+
+- **许可证**: MIT License - 详见 [LICENSE](./LICENSE)
+- **资源管理**: 详见 [ASSETS.md](./ASSETS.md)
+- **第三方声明**: 详见 [NOTICES.md](./NOTICES.md)
+- **知识产权管理**: 详见 [LEGAL-RISK-ASSESSMENT.md](./LEGAL-RISK-ASSESSMENT.md)

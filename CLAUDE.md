@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-Kaka 是一个基于 Tauri + React + TypeScript 构建的桌面生产力启动器，类似于 uTools。它通过全局快捷键快速打开搜索窗口，支持应用程序搜索、文件系统搜索、浏览器书签搜索、剪贴板历史等功能。
+etools 是一个基于 Tauri + React + TypeScript 构建的桌面生产力启动器。它通过全局快捷键快速打开搜索窗口，支持应用程序搜索、文件系统搜索、浏览器书签搜索、剪贴板历史等功能。
 
 ## 常用命令
 

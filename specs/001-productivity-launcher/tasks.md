@@ -1,4 +1,4 @@
-# Tasks: Productivity Launcher (utools Alternative)
+# Tasks: Productivity Launcher (Productivity Launcher)
 
 **Input**: Design documents from `/specs/001-productivity-launcher/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/

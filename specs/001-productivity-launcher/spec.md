@@ -1,4 +1,4 @@
-# Feature Specification: Productivity Launcher (utools Alternative)
+# Feature Specification: Productivity Launcher
 
 **Feature Branch**: `001-productivity-launcher`
 **Created**: 2025-12-30
@@ -7,7 +7,7 @@
 
 ## Overview
 
-A cross-platform productivity launcher that provides quick access to applications, files, web resources, and utilities through a unified search interface. The application aims to be a lightweight, extensible alternative to utools with a plugin-based architecture.
+A cross-platform productivity launcher that provides quick access to applications, files, web resources, and utilities through a unified search interface. The application is built as a lightweight, extensible launcher with a plugin-based architecture.
 
 ---
 
@@ -34,7 +34,7 @@ A cross-platform productivity launcher that provides quick access to application
 
 **Description**: Users can access their clipboard history (text and images) through the search interface and quickly paste previous items.
 
-**Why this priority**: Clipboard management is a high-frequency productivity booster. After app launching, this is the most commonly used utools feature.
+**Why this priority**: Clipboard management is a high-frequency productivity booster. After app launching, this is one of the most commonly used productivity launcher features.
 
 **Independent Test**: Can be tested by copying multiple items, invoking the search, and accessing/pasting from clipboard history.
 
@@ -318,7 +318,7 @@ A cross-platform productivity launcher that provides quick access to application
 
 #### Development & Ecosystem
 - **SC-014**: At least 10 community plugins are available within 3 months of public release
-- **SC-015**: Plugin API supports at least 80% of common utools plugin use cases
+- **SC-015**: Plugin API supports at least 80% of common productivity plugin use cases
 
 ---
 

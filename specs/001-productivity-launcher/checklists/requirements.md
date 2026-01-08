@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Productivity Launcher (utools Alternative)
+# Specification Quality Checklist: Productivity Launcher (Productivity Launcher)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2025-12-30
