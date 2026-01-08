@@ -1,4 +1,4 @@
-# Implementation Plan: Productivity Launcher (utools Alternative)
+# Implementation Plan: Productivity Launcher (Productivity Launcher)
 
 **Branch**: `001-productivity-launcher` | **Date**: 2025-12-30 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `specs/001-productivity-launcher/spec.md`

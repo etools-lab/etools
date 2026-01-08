@@ -8,7 +8,7 @@
 
 ## Overview
 
-This guide helps you get started with developing the Productivity Launcher (utools alternative). The application is built with Tauri, React, and TypeScript.
+This guide helps you get started with developing the Productivity Launcher. The application is built with Tauri, React, and TypeScript.
 
 ---
 

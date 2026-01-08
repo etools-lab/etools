@@ -64,7 +64,7 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
 
           {/* Description */}
           <p className="about-dialog__description">
-            一个现代化的桌面生产力启动器，类似于 uTools。<br/>
+            一个现代化的桌面生产力启动器。<br/>
             使用 Tauri + React + TypeScript 构建。
           </p>
 

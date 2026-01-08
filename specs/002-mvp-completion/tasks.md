@@ -375,7 +375,7 @@ With multiple developers after Foundational phase:
 **Add US2 + US3** for comprehensive search functionality: +19 tasks = 36 tasks total
 
 - Adds file search and browser bookmark search
-- Matches competing launchers (uTools, Alfred, Raycast)
+- Matches common productivity launcher features
 - Estimated effort: ~2-3 additional weeks
 
 ---

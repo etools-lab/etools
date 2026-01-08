@@ -34,7 +34,7 @@ This feature completes the MVP (Minimum Viable Product) by implementing missing 
 
 **Description**: Users need to quickly find and open files on their computer by typing the file name, without navigating through folders in Finder/Explorer.
 
-**Why this priority**: File search is documented in README and preferences.json but disabled by default. It's a core productivity tool that competing launchers (uTools, Alfred, Raycast) all provide.
+**Why this priority**: File search is documented in README and preferences.json but disabled by default. It's a core productivity tool that most productivity launchers provide.
 
 **Independent Test**: Can be tested by creating test files, enabling file indexing, then searching for them by name. Delivers value by reducing time spent navigating file systems.
 
