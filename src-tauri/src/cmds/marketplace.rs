@@ -53,7 +53,7 @@ pub fn marketplace_search(
 }
 
 /// Install a plugin from npm
-/// ✅ Rubick 方案：安装后更新 package.json
+/// 安装后更新 package.json
 ///
 /// @param package_name - npm package name (e.g., "@etools-plugin/hello")
 #[tauri::command]
@@ -70,7 +70,7 @@ pub fn marketplace_install(
     // 1. 从 npm 下载并安装
     let plugin = service.install_plugin(&package_name, &handle)?;
 
-    // 2. ✅ Rubick 方案：更新 package.json
+    // 2. 更新 package.json
     let plugins_dir = handle
         .path()
         .app_data_dir()
@@ -118,7 +118,7 @@ pub fn marketplace_install(
 }
 
 /// Uninstall a plugin using npm
-/// ✅ Rubick 方案：卸载后从 package.json 移除
+/// 卸载后从 package.json 移除
 ///
 /// @param package_name - npm package name to uninstall
 #[tauri::command]
@@ -135,7 +135,7 @@ pub fn marketplace_uninstall(
     // 1. 从文件系统卸载
     service.uninstall_plugin(&package_name, &handle)?;
 
-    // 2. ✅ Rubick 方案：从 package.json 移除
+    // 2. 从 package.json 移除
     let plugins_dir = handle
         .path()
         .app_data_dir()
@@ -224,11 +224,11 @@ pub fn marketplace_get_plugin(
 }
 
 /// Get installed npm plugins from package.json
-/// ✅ Rubick 方案：读取 package.json，性能极佳（< 1ms）
+/// 读取 package.json，性能极佳（< 1ms）
 #[tauri::command]
 pub fn get_installed_plugins(handle: AppHandle) -> Result<Vec<Plugin>, String> {
     let start_total = std::time::Instant::now();
-    println!("[Marketplace] ===== get_installed_plugins command called (Rubick mode) =====");
+    println!("[Marketplace] ===== get_installed_plugins command called =====");
 
     // 1. 获取插件目录
     let plugins_dir = handle
@@ -255,7 +255,7 @@ pub fn get_installed_plugins(handle: AppHandle) -> Result<Vec<Plugin>, String> {
             .map_err(|e| format!("Failed to create package.json: {}", e))?;
     }
 
-    // 4. 读取 package.json（Rubick 方案：核心优化）
+    // 4. 读取 package.json（核心优化）
     let start_read = std::time::Instant::now();
     let package_json_content = std::fs::read_to_string(&package_json_path)
         .map_err(|e| format!("Failed to read package.json: {}", e))?;
@@ -356,7 +356,7 @@ pub fn get_installed_plugins(handle: AppHandle) -> Result<Vec<Plugin>, String> {
     }
 
     println!("[Marketplace] Load {} plugin details: {:?}", plugins.len(), start_load.elapsed());
-    println!("[Marketplace] ✅ Total time: {:?} (Rubick mode: < 1ms expected)", start_total.elapsed());
+    println!("[Marketplace] ✅ Total time: {:?} (< 1ms expected)", start_total.elapsed());
 
     Ok(plugins)
 }

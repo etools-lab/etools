@@ -130,7 +130,7 @@ function convertRawPluginToFrontend(raw: RawPluginFromBackend): Plugin {
 export class PluginManagerService {
   /**
    * Get all installed plugins from marketplace
-   * ✅ Rubick 方案：直接调用后端，后端读取 package.json（< 1ms）
+   * 直接调用后端，后端读取 package.json（< 1ms）
    */
   async getInstalledPlugins(): Promise<Plugin[]> {
     try {

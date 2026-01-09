@@ -1,7 +1,7 @@
 /**
  * MarketplaceView Component
  * Browse and install plugins from marketplace
- * ✅ 使用静态 JSON 数据源（类似 Rubick）
+ * 使用静态 JSON 数据源
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
