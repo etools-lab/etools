@@ -1,0 +1,8 @@
+# Code Owners
+# 所有代码变更都需要 Chee-0806 审批
+
+* @Chee-0806
+
+# 特定目录可以指定不同的所有者
+# src/components/ @Chee-0806
+# src-tauri/ @Chee-0806
