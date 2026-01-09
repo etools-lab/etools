@@ -22,6 +22,33 @@ export function PluginPopupWindow() {
 
   console.log('[PluginPopupWindow] Component mounted');
 
+  // Define handleClose before useEffect to satisfy React Hooks rules
+  const handleClose = async () => {
+    console.log('[PluginPopupWindow] Closing popup');
+    setIsVisible(false);
+    setPopupData(null);
+
+    try {
+      await invoke('hide_plugin_popup');
+    } catch (error) {
+      console.error('[PluginPopupWindow] Failed to close:', error);
+    }
+  };
+
+  const handleButtonClick = async (buttonValue: string) => {
+    console.log('[PluginPopupWindow] Button clicked:', buttonValue);
+
+    // Emit button click event back to plugin
+    if (popupData) {
+      const event = new CustomEvent('plugin-popup-button-click', {
+        detail: { pluginId: popupData.pluginId, buttonValue }
+      });
+      window.dispatchEvent(event);
+    }
+
+    await handleClose();
+  };
+
   useEffect(() => {
     console.log('[PluginPopupWindow] Setting up event listeners');
 
@@ -52,33 +79,7 @@ export function PluginPopupWindow() {
       unlistenClosePromise.then(fn => fn());
       window.removeEventListener('keydown', handleEscape);
     };
-  }, [isVisible]);
-
-  const handleClose = async () => {
-    console.log('[PluginPopupWindow] Closing popup');
-    setIsVisible(false);
-    setPopupData(null);
-
-    try {
-      await invoke('hide_plugin_popup');
-    } catch (error) {
-      console.error('[PluginPopupWindow] Failed to close:', error);
-    }
-  };
-
-  const handleButtonClick = async (buttonValue: string) => {
-    console.log('[PluginPopupWindow] Button clicked:', buttonValue);
-
-    // Emit button click event back to plugin
-    if (popupData) {
-      const event = new CustomEvent('plugin-popup-button-click', {
-        detail: { pluginId: popupData.pluginId, buttonValue }
-      });
-      window.dispatchEvent(event);
-    }
-
-    await handleClose();
-  };
+  }, [handleClose, isVisible]);
 
   if (!isVisible || !popupData) {
     return (

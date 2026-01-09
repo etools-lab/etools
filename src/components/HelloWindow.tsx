@@ -13,6 +13,16 @@ export function HelloWindow() {
   // Log when component mounts
   console.log('[HelloWindow] Component mounted!');
 
+  // Define handleClose before useEffect to satisfy React Hooks rules
+  const handleClose = async () => {
+    console.log('[HelloWindow] Closing window');
+    try {
+      await invoke('hide_hello_window');
+    } catch (error) {
+      console.error('[HelloWindow] Failed to close:', error);
+    }
+  };
+
   // Listen for hello-message event
   useEffect(() => {
     console.log('[HelloWindow] Setting up event listener for hello-message');
@@ -35,16 +45,7 @@ export function HelloWindow() {
       unlistenPromise.then(fn => fn());
       window.removeEventListener('keydown', handleEscape);
     };
-  }, []);
-
-  const handleClose = async () => {
-    console.log('[HelloWindow] Closing window');
-    try {
-      await invoke('hide_hello_window');
-    } catch (error) {
-      console.error('[HelloWindow] Failed to close:', error);
-    }
-  };
+  }, [handleClose]);
 
   console.log('[HelloWindow] Rendering with message:', message);
 

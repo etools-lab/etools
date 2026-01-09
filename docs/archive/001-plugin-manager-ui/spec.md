@@ -1,9 +1,13 @@
 # Feature Specification: 集成插件管理界面
 
 **Feature Branch**: `001-plugin-manager-ui`
-**Created**: 2025-01-01
-**Status**: Draft
+**Created**: 2024-01-05
+**Completed**: 2025-01-09
+**Status**: ✅ Completed - Archived
 **Input**: User description: "集成插件界面"
+
+**Archived**: 2025-01-09
+**Archive Reason**: 插件管理器功能已完整实现，包括统一界面、批量操作、插件市场集成等所有特性
 
 ## Overview
 
