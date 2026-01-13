@@ -33,8 +33,8 @@ function RecentAppItem({ app, onClick }: RecentAppItemProps) {
   useEffect(() => {
     mountedRef.current = true;
 
-    // Load icon if not available and running in Tauri
-    if (!iconUrl && !loadingRef.current && isTauri()) {
+    // Load icon if not available
+    if (!iconUrl && !loadingRef.current) {
       loadingRef.current = true;
 
       const loadIcon = async () => {
@@ -90,16 +90,6 @@ function RecentAppItem({ app, onClick }: RecentAppItemProps) {
   );
 }
 
-// Type declaration for Tauri environment detection
-declare global {
-  interface Window {
-    __TAURI__?: unknown;
-  }
-}
-
-// Check if running in Tauri environment
-const isTauri = () => typeof window !== 'undefined' && window.__TAURI__ !== undefined;
-
 export function SearchWindow() {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -121,19 +111,17 @@ export function SearchWindow() {
 
   // Initialize logger on mount
   useEffect(() => {
-    if (isTauri()) {
-      initLogger();
-      logger.info('SearchWindow', 'Component mounted');
+    initLogger();
+    logger.info('SearchWindow', 'Component mounted');
 
-      // Load recently used apps
-      invoke('get_recently_used', { limit: 10 })
-        .then((response: { apps: Array<{ id: string; name: string; executable_path: string; icon?: string }> }) => {
-          setRecentApps(response.apps);
-        })
-        .catch((error) => {
-          console.error('Failed to load recently used apps:', error);
-        });
-    }
+    // Load recently used apps
+    invoke('get_recently_used', { limit: 10 })
+      .then((response: { apps: Array<{ id: string; name: string; executable_path: string; icon?: string }> }) => {
+        setRecentApps(response.apps);
+      })
+      .catch((error) => {
+        console.error('Failed to load recently used apps:', error);
+      });
   }, []);
 
   // Auto-focus input on mount and window show
@@ -146,16 +134,14 @@ export function SearchWindow() {
 
     focusInput();
 
-    if (isTauri()) {
-      const unlistenPromise = listen('window-shown', () => {
-        if (!isUserTypingRef.current) {
-          focusInput();
-        }
-      });
-      return () => {
-        unlistenPromise.then(fn => fn());
-      };
-    }
+    const unlistenPromise = listen('window-shown', () => {
+      if (!isUserTypingRef.current) {
+        focusInput();
+      }
+    });
+    return () => {
+      unlistenPromise.then(fn => fn());
+    };
   }, []);
 
   // Reset typing flag after user stops typing
@@ -224,7 +210,7 @@ export function SearchWindow() {
       await result.action();
 
       // Track usage if it's an app
-      if (result.type === 'app' && isTauri()) {
+      if (result.type === 'app') {
         try {
           await invoke('track_app_usage', { appId: result.id });
         } catch (error) {
@@ -254,12 +240,10 @@ export function SearchWindow() {
 
   // Hide window
   const hideWindow = async () => {
-    if (isTauri()) {
-      try {
-        await invoke('hide_window');
-      } catch (error) {
-        console.error('Failed to hide window:', error);
-      }
+    try {
+      await invoke('hide_window');
+    } catch (error) {
+      console.error('Failed to hide window:', error);
     }
   };
 

@@ -1,10 +1,15 @@
 /**
  * Plugin Management Database Schema
  * Database tables and migrations for plugin management
+ *
+ * Note: Schema functions are kept for future database management needs.
+ * Currently using in-memory plugin state, but these functions provide
+ * a foundation for future persistent storage.
  */
 use rusqlite::{Connection, Result as SqliteResult};
 
 /// Create plugin management tables
+#[allow(dead_code)]
 pub fn create_plugin_tables(conn: &Connection) -> SqliteResult<()> {
     // Create plugins table
     conn.execute(
@@ -101,6 +106,7 @@ pub fn create_plugin_tables(conn: &Connection) -> SqliteResult<()> {
 }
 
 /// Create triggers for data consistency
+#[allow(dead_code)]
 pub fn create_plugin_triggers(conn: &Connection) -> SqliteResult<()> {
     // Trigger to automatically update health_last_checked when plugin health is accessed
     conn.execute(
@@ -135,6 +141,7 @@ pub fn create_plugin_triggers(conn: &Connection) -> SqliteResult<()> {
 }
 
 /// Migration functions for schema updates
+#[allow(dead_code)]
 pub fn migrate_to_v2(conn: &Connection) -> SqliteResult<()> {
     // Example migration for adding new columns
     let add_columns = vec![
@@ -158,6 +165,7 @@ pub fn migrate_to_v2(conn: &Connection) -> SqliteResult<()> {
 }
 
 /// Get database statistics for monitoring
+#[allow(dead_code)]
 pub fn get_database_stats(conn: &Connection) -> SqliteResult<DatabaseStats> {
     let plugin_count: i64 =
         conn.query_row("SELECT COUNT(*) FROM plugins", [], |row| row.get(0))?;
@@ -190,6 +198,7 @@ pub struct DatabaseStats {
 }
 
 /// Initialize database with default data
+#[allow(dead_code)]
 pub fn initialize_default_data(conn: &Connection) -> SqliteResult<()> {
     // Create default plugin configuration
     conn.execute(

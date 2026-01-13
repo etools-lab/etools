@@ -33,6 +33,7 @@ pub async fn detect_screen_info(app: &AppHandle) -> Result<ScreenInfo, String> {
 }
 
 /// Get screen info with fallback to defaults if detection fails
+#[allow(dead_code)]
 pub async fn get_screen_info_with_fallback(app: &AppHandle) -> ScreenInfo {
     match detect_screen_info(app).await {
         Ok(info) => info,
@@ -51,6 +52,7 @@ pub async fn get_screen_info_with_fallback(app: &AppHandle) -> ScreenInfo {
 }
 
 /// Emit screen changed event when resolution or display configuration changes
+#[allow(dead_code)]
 pub fn emit_screen_changed(app: &AppHandle, old_info: Option<ScreenInfo>, new_info: &ScreenInfo) {
     use crate::types::ScreenChangedPayload;
 

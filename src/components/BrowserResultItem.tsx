@@ -5,6 +5,8 @@
 
 import { useState } from 'react';
 import { Kbd } from './ui/Kbd';
+import { formatRelativeTime } from '@/utils/formatters';
+import { getBrowserIcon } from '@/utils/iconMaps';
 import './BrowserResultItem.css';
 
 export interface BrowserResultItemData {
@@ -39,40 +41,6 @@ export function BrowserResultItem({ item, isActive = false, onClick }: BrowserRe
     }
   };
 
-  const getBrowserIcon = (): string => {
-    const browserIcons: Record<string, string> = {
-      'chrome': '🌐',
-      'firefox': '🦊',
-      'safari': '🧭',
-      'edge': '📘',
-      'brave': '🦁',
-      'opera': '🎭',
-    };
-    return browserIcons[item.browser.toLowerCase()] || '🌐';
-  };
-
-  const getDomain = (): string => {
-    try {
-      return new URL(item.url).hostname;
-    } catch {
-      return item.url;
-    }
-  };
-
-  const formatTime = (timestamp?: number): string => {
-    if (!timestamp) return '';
-
-    const date = new Date(timestamp * 1000);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
-    return date.toLocaleDateString();
-  };
-
   const getTypeBadge = (): string => {
     return item.entry_type === 'bookmark' ? '书签' : '历史';
   };
@@ -92,7 +60,7 @@ export function BrowserResultItem({ item, isActive = false, onClick }: BrowserRe
             loading="lazy"
           />
         ) : (
-          <span className="browser-result__fallback-icon">{getBrowserIcon()}</span>
+          <span className="browser-result__fallback-icon">{getBrowserIcon(item.browser)}</span>
         )}
       </div>
 

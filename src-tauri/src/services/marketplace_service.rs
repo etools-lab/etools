@@ -15,6 +15,8 @@ pub type MarketplaceResult<T> = Result<T, String>;
 
 /// NPM registry search API endpoint
 const NPM_SEARCH_API: &str = "https://registry.npmjs.org/-/v1/search";
+/// NPM registry API endpoint (reserved for future use)
+#[allow(dead_code)]
 const NPM_REGISTRY_API: &str = "https://registry.npmjs.org";
 
 /// Marketplace service (npm-based)
@@ -263,20 +265,21 @@ impl MarketplaceService {
             .and_then(|v| v.as_str())
             .map(String::from);
 
-        let homepage = package_json.get("homepage")
+        // TODO: Add homepage, repository, category to Plugin struct when needed
+        let _homepage = package_json.get("homepage")
             .and_then(|v| v.as_str())
             .or_else(|| etools_metadata.as_ref().and_then(|m| m.get("homepage").and_then(|v| v.as_str())))
             .map(String::from);
 
-        let repository = package_json.get("repository")
+        let _repository = package_json.get("repository")
             .and_then(|v| v.as_str())
             .map(String::from);
 
-        let category_str = etools_metadata.as_ref()
+        let _category_str = etools_metadata.as_ref()
             .and_then(|m| m.get("category"))
             .and_then(|v| v.as_str())
             .unwrap_or("utilities");
-        let category = Self::parse_category(category_str);
+        let _category = Self::parse_category(_category_str);
 
         // 5. Get entry point
         let main = package_json.get("main")
@@ -527,6 +530,7 @@ impl MarketplaceService {
 
     /// List installed npm plugins
     /// Scans the node_modules directory for installed @etools-plugin packages
+    #[allow(dead_code)]
     pub fn list_installed_plugins(&self, handle: &AppHandle) -> MarketplaceResult<Vec<Plugin>> {
         println!("[Marketplace] list_installed_plugins called");
 

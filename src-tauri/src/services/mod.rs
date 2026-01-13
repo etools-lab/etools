@@ -14,5 +14,5 @@ pub mod plugin_validator;
 pub mod screen_detector;
 pub mod window_calculator;
 
-pub use screen_detector::{detect_screen_info, get_screen_info_with_fallback};
+pub use screen_detector::detect_screen_info;
 pub use window_calculator::calculate_window_layout;

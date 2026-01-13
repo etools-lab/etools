@@ -31,7 +31,7 @@ function RecentAppItem({ app, onClick }: RecentAppItemProps) {
   useEffect(() => {
     mountedRef.current = true;
 
-    if (!iconUrl && !loadingRef.current && isTauri()) {
+    if (!iconUrl && !loadingRef.current) {
       loadingRef.current = true;
 
       const loadIcon = async () => {
@@ -93,8 +93,6 @@ declare global {
   }
 }
 
-const isTauri = () => typeof window !== 'undefined' && window.__TAURI__ !== undefined;
-
 export function SearchView() {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -114,18 +112,16 @@ export function SearchView() {
   }>>([]);
 
   useEffect(() => {
-    if (isTauri()) {
-      initLogger();
-      logger.info('SearchView', 'Component mounted');
+    initLogger();
+    logger.info('SearchView', 'Component mounted');
 
-      invoke('get_recently_used', { limit: 10 })
-        .then((response: { apps: Array<{ id: string; name: string; executable_path: string; icon?: string }> }) => {
-          setRecentApps(response.apps);
-        })
-        .catch((error) => {
-          console.error('Failed to load recently used apps:', error);
-        });
-    }
+    invoke('get_recently_used', { limit: 10 })
+      .then((response: { apps: Array<{ id: string; name: string; executable_path: string; icon?: string }> }) => {
+        setRecentApps(response.apps);
+      })
+      .catch((error) => {
+        console.error('Failed to load recently used apps:', error);
+      });
   }, []);
 
   useEffect(() => {
@@ -137,16 +133,14 @@ export function SearchView() {
 
     focusInput();
 
-    if (isTauri()) {
-      const unlistenPromise = listen('window-shown', () => {
-        if (!isUserTypingRef.current) {
-          focusInput();
-        }
-      });
-      return () => {
-        unlistenPromise.then(fn => fn());
-      };
-    }
+    const unlistenPromise = listen('window-shown', () => {
+      if (!isUserTypingRef.current) {
+        focusInput();
+      }
+    });
+    return () => {
+      unlistenPromise.then(fn => fn());
+    };
   }, []);
 
   useEffect(() => {
@@ -209,7 +203,7 @@ export function SearchView() {
     try {
       await result.action();
 
-      if (result.type === 'app' && isTauri()) {
+      if (result.type === 'app') {
         try {
           await invoke('track_app_usage', { appId: result.id });
         } catch (error) {
@@ -236,12 +230,10 @@ export function SearchView() {
   };
 
   const hideWindow = async () => {
-    if (isTauri()) {
-      try {
-        await invoke('hide_window');
-      } catch (error) {
-        console.error('Failed to hide window:', error);
-      }
+    try {
+      await invoke('hide_window');
+    } catch (error) {
+      console.error('Failed to hide window:', error);
     }
   };
 

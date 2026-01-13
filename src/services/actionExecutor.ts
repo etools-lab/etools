@@ -11,11 +11,6 @@ import { invoke } from '@tauri-apps/api/core';
 import type { PluginActionData, PluginPermission } from '@/lib/plugin-sdk/v2-types';
 
 /**
- * Check if running in Tauri environment
- */
-const isTauri = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
-
-/**
  * Action Executor class
  */
 export class ActionExecutor {
@@ -73,22 +68,17 @@ export class ActionExecutor {
     style?: 'info' | 'success' | 'warning' | 'error';
     buttons?: Array<{ label: string; value: string; isPrimary?: boolean }>;
   }): Promise<void> {
-    if (isTauri()) {
-      try {
-        await invoke('show_plugin_popup', {
-          title: data.title,
-          message: data.message,
-          icon: data.icon || 'ℹ️',
-          style: data.style || 'info',
-          buttons: data.buttons || [{ label: '确定', value: 'ok', isPrimary: true }]
-        });
-      } catch (error) {
-        console.error('[ActionExecutor] Failed to show Tauri popup:', error);
-        // Fallback to browser alert
-        alert(`${data.title}\n\n${data.message}`);
-      }
-    } else {
-      // Browser mode
+    try {
+      await invoke('show_plugin_popup', {
+        title: data.title,
+        message: data.message,
+        icon: data.icon || 'ℹ️',
+        style: data.style || 'info',
+        buttons: data.buttons || [{ label: '确定', value: 'ok', isPrimary: true }]
+      });
+    } catch (error) {
+      console.error('[ActionExecutor] Failed to show Tauri popup:', error);
+      // Fallback to browser alert
       alert(`${data.title}\n\n${data.message}`);
     }
   }
@@ -104,16 +94,12 @@ export class ActionExecutor {
       throw new Error('Permission denied: write:clipboard');
     }
 
-    if (isTauri()) {
-      try {
-        await invoke('write_clipboard_text', { text: data.text });
-        console.log('[ActionExecutor] Wrote to clipboard:', data.text);
-      } catch (error) {
-        console.error('[ActionExecutor] Failed to write clipboard:', error);
-        // Fallback to browser API
-        await navigator.clipboard.writeText(data.text);
-      }
-    } else {
+    try {
+      await invoke('write_clipboard_text', { text: data.text });
+      console.log('[ActionExecutor] Wrote to clipboard:', data.text);
+    } catch (error) {
+      console.error('[ActionExecutor] Failed to write clipboard:', error);
+      // Fallback to browser API
       await navigator.clipboard.writeText(data.text);
     }
   }
@@ -129,16 +115,10 @@ export class ActionExecutor {
       throw new Error('Permission denied: network:request');
     }
 
-    if (isTauri()) {
-      try {
-        await invoke('open_url', { url: data.href });
-      } catch (error) {
-        console.error('[ActionExecutor] Failed to open URL via Tauri:', error);
-        // Fallback to browser API
-        window.open(data.href, data.target || '_blank');
-      }
-    } else {
-      window.open(data.href, data.target || '_blank');
+    try {
+      await invoke('open_url', { url: data.href });
+    } catch (error) {
+      console.error('[ActionExecutor] Failed to open URL via Tauri:', error);
     }
   }
 

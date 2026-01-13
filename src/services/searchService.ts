@@ -3,6 +3,8 @@
  */
 
 import Fuse, { FuseResult } from 'fuse.js';
+import { invoke } from '@tauri-apps/api/core';
+import { getFileIcon } from '@/utils/iconMaps';
 import type { SearchResult, SearchResultType, ScoringConfig, SearchOptions, SearchResponse } from '@/types/search';
 
 // Default scoring configuration
@@ -235,17 +237,7 @@ export class SearchService {
       type: 'app',
       score: 0,
       action: async () => {
-        // Check if running in Tauri environment
-        const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
-
-        if (isTauri) {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('launch_app', { path: executablePath });
-        } else {
-          // Browser mode - just log
-          console.log(`[Browser Mode] Would launch: ${name} (${executablePath})`);
-          alert(`Browser Mode: Would launch "${name}"\nPath: ${executablePath}`);
-        }
+        await invoke('launch_app', { path: executablePath });
       },
     };
   }
@@ -264,19 +256,12 @@ export class SearchService {
       id,
       title: filename,
       subtitle: path,
-      icon: this.getFileIcon(extension),
+      icon: getFileIcon(extension),
       type: 'file',
       score: 0,
       action: async () => {
-        const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
-
-        if (isTauri) {
-          const { invoke } = await import('@tauri-apps/api/core');
-          // Open file with default application
-          await invoke('open_url', { url: `file://${path}` });
-        } else {
-          console.log(`[Browser Mode] Would open file: ${path}`);
-        }
+        // Open file with default application
+        await invoke('open_url', { url: `file://${path}` });
       },
     };
   }
@@ -300,37 +285,9 @@ export class SearchService {
       type: entryType === 'bookmark' ? 'bookmark' : 'history',
       score: 0,
       action: async () => {
-        const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
-
-        if (isTauri) {
-          const { invoke } = await import('@tauri-apps/api/core');
-          await invoke('open_url', { url });
-        } else {
-          window.open(url, '_blank');
-        }
+        await invoke('open_url', { url });
       },
     };
-  }
-
-  /**
-   * Get file icon based on extension
-   */
-  private getFileIcon(extension?: string): string {
-    if (!extension) return '📄';
-
-    const ext = extension.toLowerCase();
-    const iconMap: Record<string, string> = {
-      'ts': '📘', 'tsx': '📘',
-      'js': '📒', 'jsx': '📒',
-      'py': '🐍', 'rs': '🦀',
-      'css': '🎨', 'html': '🌐',
-      'json': '📋', 'md': '📝',
-      'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️',
-      'svg': '🖼️', 'pdf': '📕',
-      'zip': '📦', 'tar': '📦',
-    };
-
-    return iconMap[ext] || '📄';
   }
 }
 

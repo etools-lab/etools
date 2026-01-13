@@ -1,7 +1,6 @@
 //! File System Commands
 //! Tauri commands for file system operations
 
-use tauri::AppHandle;
 use std::fs;
 use std::path::Path;
 

@@ -254,8 +254,6 @@ pub fn reregister_hotkey(handle: AppHandle, hotkey: String) -> Result<(), String
             println!("[GlobalShortcut] Window hidden");
         } else {
             // 显示窗口前先定位到鼠标所在屏幕的中心偏上位置
-            use tauri::Manager;
-
             // 获取鼠标位置
             if let Ok(cursor_pos) = window_clone.cursor_position() {
                 let cursor_x = cursor_pos.x as i32;

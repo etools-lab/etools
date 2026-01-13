@@ -80,16 +80,9 @@ export class ErrorLogger {
   }
 
   /**
-   * Log to Tauri backend (if available)
+   * Log to Tauri backend
    */
   private async logToBackend(log: ErrorLog) {
-    // Check if running in Tauri
-    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
-
-    if (!isTauri) {
-      return;
-    }
-
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('log_error', {

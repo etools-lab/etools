@@ -4,6 +4,8 @@
  */
 
 import { Kbd } from './ui/Kbd';
+import { getFileIcon } from '@/utils/iconMaps';
+import { formatFileSize } from '@/utils/formatters';
 import './FileResultItem.css';
 
 export interface FileResultItemData {
@@ -23,82 +25,6 @@ interface FileResultItemProps {
 }
 
 export function FileResultItem({ item, isActive = false, onClick }: FileResultItemProps) {
-  const formatSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
-  };
-
-  const formatTime = (timestamp: number): string => {
-    const date = new Date(timestamp * 1000);
-    return date.toLocaleDateString();
-  };
-
-  const getFileIcon = (): string => {
-    if (!item.extension) return '📄';
-
-    const ext = item.extension.toLowerCase();
-    const iconMap: Record<string, string> = {
-      // Code
-      'ts': '📘',
-      'tsx': '📘',
-      'js': '📒',
-      'jsx': '📒',
-      'py': '🐍',
-      'rs': '🦀',
-      'go': '🐹',
-      'java': '☕',
-      'cpp': '⚙️',
-      'c': '⚙️',
-      'h': '⚙️',
-      'css': '🎨',
-      'scss': '🎨',
-      'html': '🌐',
-      'json': '📋',
-      'xml': '📋',
-      'yaml': '📋',
-      'yml': '📋',
-      'md': '📝',
-      'txt': '📄',
-      'pdf': '📕',
-      'doc': '📘',
-      'docx': '📘',
-      'xls': '📗',
-      'xlsx': '📗',
-      'ppt': '📙',
-      'pptx': '📙',
-      // Images
-      'png': '🖼️',
-      'jpg': '🖼️',
-      'jpeg': '🖼️',
-      'gif': '🖼️',
-      'svg': '🖼️',
-      'webp': '🖼️',
-      'ico': '🖼️',
-      // Audio
-      'mp3': '🎵',
-      'wav': '🎵',
-      'flac': '🎵',
-      'ogg': '🎵',
-      'm4a': '🎵',
-      // Video
-      'mp4': '🎬',
-      'mkv': '🎬',
-      'avi': '🎬',
-      'mov': '🎬',
-      'webm': '🎬',
-      // Archives
-      'zip': '📦',
-      'rar': '📦',
-      '7z': '📦',
-      'tar': '📦',
-      'gz': '📦',
-    };
-
-    return iconMap[ext] || '📄';
-  };
-
   const getPathParts = () => {
     const parts = item.path.split('/');
     return parts.slice(0, -1); // Remove filename
@@ -109,7 +35,7 @@ export function FileResultItem({ item, isActive = false, onClick }: FileResultIt
       className={`file-result ${isActive ? 'active' : ''} ${item.hidden ? 'hidden' : ''}`}
       onClick={onClick}
     >
-      <div className="file-result__icon">{getFileIcon()}</div>
+      <div className="file-result__icon">{getFileIcon(item.extension)}</div>
 
       <div className="file-result__content">
         <div className="file-result__name">{item.filename}</div>
@@ -119,7 +45,7 @@ export function FileResultItem({ item, isActive = false, onClick }: FileResultIt
       </div>
 
       <div className="file-result__meta">
-        <Kbd>{formatSize(item.size)}</Kbd>
+        <Kbd>{formatFileSize(item.size)}</Kbd>
       </div>
     </div>
   );

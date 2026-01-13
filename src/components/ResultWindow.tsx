@@ -70,13 +70,6 @@ declare global {
 // ============================================================================
 
 /**
- * Check if running in Tauri environment
- */
-function isTauriEnvironment(): boolean {
-  return typeof window !== 'undefined' && window.__TAURI__ !== undefined;
-}
-
-/**
  * Calculate constrained window height
  */
 function calculateWindowHeight(contentHeight: number): number {
@@ -107,10 +100,8 @@ async function hideAllWindows(): Promise<void> {
  */
 function useLoggerInit(): void {
   useEffect(() => {
-    if (isTauriEnvironment()) {
-      initLogger();
-      logger.info('ResultWindow', 'Component mounted');
-    }
+    initLogger();
+    logger.info('ResultWindow', 'Component mounted');
   }, []);
 }
 
@@ -123,8 +114,6 @@ function useWindowSize(results: SearchResult[]): void {
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    if (!isTauriEnvironment()) return;
-
     const container = document.querySelector(ELEMENT_IDS.container);
     if (!container) return;
 

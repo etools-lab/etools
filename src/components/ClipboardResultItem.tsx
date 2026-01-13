@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Kbd } from './ui/Kbd';
+import { formatRelativeTime } from '@/utils/formatters';
 import './ClipboardResultItem.css';
 
 export interface ClipboardItem {
@@ -24,17 +25,6 @@ interface ClipboardResultItemProps {
 
 export function ClipboardResultItem({ item, isActive = false, onClick }: ClipboardResultItemProps) {
   const [imageError, setImageError] = useState(false);
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-    return date.toLocaleDateString();
-  };
 
   const handlePaste = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -112,7 +102,7 @@ export function ClipboardResultItem({ item, isActive = false, onClick }: Clipboa
 
         <div className="clipboard-result__meta">
           <span className="clipboard-result__time">
-            {formatTime(item.timestamp)}
+            {formatRelativeTime(item.timestamp)}
           </span>
           {item.is_sensitive && (
             <span className="clipboard-result__sensitive-badge">敏感</span>

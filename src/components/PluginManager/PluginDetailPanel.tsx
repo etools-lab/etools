@@ -8,169 +8,50 @@ import { invoke } from '@tauri-apps/api/core';
 import { usePluginState, usePluginDispatch } from '../../services/pluginStateStore';
 import { pluginManagerService } from '../../services/pluginManager';
 import { pluginAbbreviationService, PluginAbbreviationService } from '../../services/pluginAbbreviationService';
-import type { Plugin, PluginHealth, PluginUsageStats, PluginPermission, PluginAbbreviation } from '../../types/plugin';
+import {
+  PluginHealthSection,
+  PluginUsageStats,
+  PluginPermissions,
+  PluginAbbreviations,
+  PluginMetadata,
+} from './sections';
+import type { Plugin, PluginHealth, PluginUsageStats as UsageStatsType, PluginPermission, PluginAbbreviation } from '../../types/plugin';
 import './PluginDetailPanel.css';
 
-/**
- * PluginDetailPanel Props
- */
+// ============================================================================
+// Types
+// ============================================================================
+
 interface PluginDetailPanelProps {
   pluginId: string;
   onClose?: () => void;
 }
 
-/**
- * PluginDetailPanel Component
- */
-const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose }) => {
-  const dispatch = usePluginDispatch();
-  const state = usePluginState();
+// ============================================================================
+// Custom Hook for Plugin Abbreviations
+// ============================================================================
 
-  const [plugin, setPlugin] = useState<Plugin | null>(null);
-  const [health, setHealth] = useState<PluginHealth | null>(null);
-  const [usageStats, setUsageStats] = useState<PluginUsageStats | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [refreshingHealth, setRefreshingHealth] = useState(false);
-
-  // Abbreviation state
+function usePluginAbbreviations(pluginId: string, dispatch: ReturnType<typeof usePluginDispatch>) {
   const [abbreviations, setAbbreviations] = useState<PluginAbbreviation[]>([]);
   const [newAbbrKeyword, setNewAbbrKeyword] = useState('');
   const [abbrError, setAbbrError] = useState<string | null>(null);
 
-  /**
-   * Load plugin details
-   */
-  const loadPluginDetails = useCallback(async () => {
-    if (!pluginId) return;
+  const loadAbbreviations = useCallback(async () => {
+    const config = await invoke<Record<string, PluginAbbreviation[]>>('get_plugin_abbreviations');
+    const abbrs = config[pluginId] || [];
+    setAbbreviations(abbrs);
+    return abbrs;
+  }, [pluginId]);
 
-    setLoading(true);
-    try {
-      // Find plugin from state
-      const foundPlugin = state.plugins.find((p) => p.manifest.id === pluginId);
-      if (foundPlugin) {
-        setPlugin(foundPlugin);
+  const handleAdd = useCallback(async () => {
+    if (!newAbbrKeyword.trim()) return;
 
-        // Load health - 如果命令不存在则使用默认值
-        try {
-          const healthData = await pluginManagerService.getPluginHealth(pluginId);
-          setHealth(healthData);
-        } catch (error) {
-          console.warn('[PluginDetailPanel] Health check not available, using default:', error);
-          // 使用默认的健康状态
-          setHealth({
-            status: 'unknown',
-            message: '健康检查不可用',
-            lastChecked: Date.now(),
-            errors: [],
-          });
-        }
-
-        // Load usage stats - 如果命令不存在则使用默认值
-        try {
-          const statsData = await pluginManagerService.getPluginUsageStats(pluginId);
-          setUsageStats(statsData);
-        } catch (error) {
-          console.warn('[PluginDetailPanel] Usage stats not available, using default:', error);
-          // 使用默认的使用统计
-          setUsageStats({
-            lastUsed: null,
-            usageCount: 0,
-            lastExecutionTime: null,
-            averageExecutionTime: null,
-          });
-        }
-
-        // Load abbreviations - 每次都强制重新加载以确保最新数据
-        const config = await invoke<any>('get_plugin_abbreviations');
-        const abbrs = config[pluginId] || [];
-        setAbbreviations(abbrs);
-        console.log('[PluginDetailPanel] Loaded abbreviations for', pluginId, ':', abbrs);
-      }
-    } catch (error) {
-      console.error('Failed to load plugin details:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [pluginId, state.plugins]);
-
-  /**
-   * Refresh health status
-   */
-  const handleRefreshHealth = async () => {
-    if (!pluginId) return;
-
-    setRefreshingHealth(true);
-    try {
-      const healthData = await pluginManagerService.refreshPluginHealth(pluginId);
-      setHealth(healthData);
-
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'success',
-          title: '健康检查完成',
-          message: '插件健康状态已更新',
-        },
-      });
-    } catch (error) {
-      console.warn('[PluginDetailPanel] Health check not available:', error);
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'warning',
-          title: '健康检查不可用',
-          message: '插件健康检查功能暂未实现',
-        },
-      });
-    } finally {
-      setRefreshingHealth(false);
-    }
-  };
-
-  /**
-   * Toggle permission
-   */
-  const handleTogglePermission = async (permission: PluginPermission) => {
-    if (!plugin) return;
-
-    const currentPermissions = plugin.grantedPermissions || new Set<PluginPermission>();
-    const hasPermission = currentPermissions.has(permission);
-
-    try {
-      if (hasPermission) {
-        await pluginManagerService.revokePermissions(plugin.manifest.id, [permission]);
-      } else {
-        await pluginManagerService.grantPermissions(plugin.manifest.id, [permission]);
-      }
-
-      // Reload plugin details
-      await loadPluginDetails();
-    } catch (error) {
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'error',
-          title: '权限更新失败',
-          message: error instanceof Error ? error.message : '未知错误',
-        },
-      });
-    }
-  };
-
-  /**
-   * Add abbreviation
-   */
-  const handleAddAbbreviation = async () => {
-    if (!plugin || !newAbbrKeyword.trim()) return;
-
-    // Validate keyword
     const validation = PluginAbbreviationService.isValidKeyword(newAbbrKeyword.trim());
     if (!validation.valid) {
       setAbbrError(validation.error || '无效的关键词');
       return;
     }
 
-    // Check for duplicates
     if (abbreviations.some(abbr => abbr.keyword.toLowerCase() === newAbbrKeyword.trim().toLowerCase())) {
       setAbbrError('此关键词已存在');
       return;
@@ -182,145 +63,181 @@ const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose
         enabled: true,
       };
 
-      // 保存到后端
-      await pluginAbbreviationService.setAbbreviation(plugin.manifest.id, newAbbr);
-
-      // 立即从后端重新加载以确保同步
-      const config = await invoke<any>('get_plugin_abbreviations');
-      const abbrs = config[plugin.manifest.id] || [];
-      setAbbreviations(abbrs);
+      await pluginAbbreviationService.setAbbreviation(pluginId, newAbbr);
+      await loadAbbreviations();
 
       setNewAbbrKeyword('');
       setAbbrError(null);
 
-      console.log('[PluginDetailPanel] Added abbreviation, current list:', abbrs);
-
       dispatch({
         type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'success',
-          title: '缩写添加成功',
-          message: `已添加缩写 "${newAbbr.keyword}"`,
-        },
+        payload: { type: 'success', title: '缩写添加成功', message: `已添加缩写 "${newAbbr.keyword}"` },
       });
     } catch (error) {
-      console.error('[PluginDetailPanel] Failed to add abbreviation:', error);
       dispatch({
         type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'error',
-          title: '添加失败',
-          message: error instanceof Error ? error.message : '未知错误',
-        },
+        payload: { type: 'error', title: '添加失败', message: error instanceof Error ? error.message : '未知错误' },
       });
     }
-  };
+  }, [pluginId, newAbbrKeyword, abbreviations, loadAbbreviations, dispatch]);
 
-  /**
-   * Remove abbreviation
-   */
-  const handleRemoveAbbreviation = async (keyword: string) => {
-    if (!plugin) return;
-
+  const handleRemove = useCallback(async (keyword: string) => {
     try {
-      // 从后端删除
-      await pluginAbbreviationService.removeAbbreviation(plugin.manifest.id, keyword);
-
-      // 立即从后端重新加载以确保同步
-      const config = await invoke<any>('get_plugin_abbreviations');
-      const abbrs = config[plugin.manifest.id] || [];
-      setAbbreviations(abbrs);
-
-      console.log('[PluginDetailPanel] Removed abbreviation, current list:', abbrs);
+      await pluginAbbreviationService.removeAbbreviation(pluginId, keyword);
+      await loadAbbreviations();
 
       dispatch({
         type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'success',
-          title: '缩写已删除',
-          message: `已删除缩写 "${keyword}"`,
-        },
+        payload: { type: 'success', title: '缩写已删除', message: `已删除缩写 "${keyword}"` },
       });
     } catch (error) {
-      console.error('[PluginDetailPanel] Failed to remove abbreviation:', error);
       dispatch({
         type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'error',
-          title: '删除失败',
-          message: error instanceof Error ? error.message : '未知错误',
-        },
+        payload: { type: 'error', title: '删除失败', message: error instanceof Error ? error.message : '未知错误' },
       });
     }
-  };
+  }, [pluginId, loadAbbreviations, dispatch]);
 
-  /**
-   * Toggle abbreviation enabled state
-   */
-  const handleToggleAbbreviation = async (keyword: string) => {
-    if (!plugin) return;
-
+  const handleToggle = useCallback(async (keyword: string) => {
     try {
       const abbr = abbreviations.find(a => a.keyword === keyword);
       if (!abbr) return;
 
-      const updatedAbbr: PluginAbbreviation = {
-        keyword,
-        enabled: !abbr.enabled,
-      };
-
-      // 保存到后端
-      await pluginAbbreviationService.setAbbreviation(plugin.manifest.id, updatedAbbr);
-
-      // 立即从后端重新加载以确保同步
-      const config = await invoke<any>('get_plugin_abbreviations');
-      const abbrs = config[plugin.manifest.id] || [];
-      setAbbreviations(abbrs);
-
-      console.log('[PluginDetailPanel] Toggled abbreviation, current list:', abbrs);
+      const updatedAbbr: PluginAbbreviation = { keyword, enabled: !abbr.enabled };
+      await pluginAbbreviationService.setAbbreviation(pluginId, updatedAbbr);
+      await loadAbbreviations();
     } catch (error) {
-      console.error('[PluginDetailPanel] Failed to toggle abbreviation:', error);
       dispatch({
         type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'error',
-          title: '更新失败',
-          message: error instanceof Error ? error.message : '未知错误',
-        },
+        payload: { type: 'error', title: '更新失败', message: error instanceof Error ? error.message : '未知错误' },
       });
     }
+  }, [pluginId, abbreviations, loadAbbreviations, dispatch]);
+
+  const handleKeywordChange = useCallback((value: string) => {
+    setNewAbbrKeyword(value);
+    setAbbrError(null);
+  }, []);
+
+  return {
+    abbreviations,
+    newAbbrKeyword,
+    abbrError,
+    loadAbbreviations,
+    handleAdd,
+    handleRemove,
+    handleToggle,
+    handleKeywordChange,
   };
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose }) => {
+  const dispatch = usePluginDispatch();
+  const state = usePluginState();
+
+  const [plugin, setPlugin] = useState<Plugin | null>(null);
+  const [health, setHealth] = useState<PluginHealth | null>(null);
+  const [usageStats, setUsageStats] = useState<UsageStatsType | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshingHealth, setRefreshingHealth] = useState(false);
+
+  const abbrState = usePluginAbbreviations(pluginId, dispatch);
 
   /**
-   * Format timestamp
+   * Load plugin details
    */
-  const formatTimestamp = (timestamp: number | null): string => {
-    if (!timestamp) return '从未';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const loadPluginDetails = useCallback(async () => {
+    if (!pluginId) return;
 
-    if (diffDays === 0) {
-      return '今天';
-    } else if (diffDays === 1) {
-      return '昨天';
-    } else if (diffDays < 7) {
-      return `${diffDays} 天前`;
-    } else if (diffDays < 30) {
-      return `${Math.floor(diffDays / 7)} 周前`;
-    } else {
-      return date.toLocaleDateString('zh-CN');
+    setLoading(true);
+    try {
+      const foundPlugin = state.plugins.find((p) => p.manifest.id === pluginId);
+      if (foundPlugin) {
+        setPlugin(foundPlugin);
+
+        // Load health
+        try {
+          const healthData = await pluginManagerService.getPluginHealth(pluginId);
+          setHealth(healthData);
+        } catch {
+          setHealth({ status: 'unknown', message: '健康检查不可用', lastChecked: Date.now(), errors: [] });
+        }
+
+        // Load usage stats
+        try {
+          const statsData = await pluginManagerService.getPluginUsageStats(pluginId);
+          setUsageStats(statsData);
+        } catch {
+          setUsageStats({ lastUsed: null, usageCount: 0, lastExecutionTime: null, averageExecutionTime: null });
+        }
+
+        // Load abbreviations
+        await abbrState.loadAbbreviations();
+      }
+    } catch (error) {
+      console.error('Failed to load plugin details:', error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [pluginId, state.plugins, abbrState.loadAbbreviations]);
 
   /**
-   * Initial load
+   * Refresh health status
    */
+  const handleRefreshHealth = useCallback(async () => {
+    if (!pluginId) return;
+
+    setRefreshingHealth(true);
+    try {
+      const healthData = await pluginManagerService.refreshPluginHealth(pluginId);
+      setHealth(healthData);
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: { type: 'success', title: '健康检查完成', message: '插件健康状态已更新' },
+      });
+    } catch {
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: { type: 'warning', title: '健康检查不可用', message: '插件健康检查功能暂未实现' },
+      });
+    } finally {
+      setRefreshingHealth(false);
+    }
+  }, [pluginId, dispatch]);
+
+  /**
+   * Toggle permission
+   */
+  const handleTogglePermission = useCallback(async (permission: PluginPermission) => {
+    if (!plugin) return;
+
+    const currentPermissions = plugin.grantedPermissions || new Set<PluginPermission>();
+    const hasPermission = currentPermissions.has(permission);
+
+    try {
+      if (hasPermission) {
+        await pluginManagerService.revokePermissions(plugin.manifest.id, [permission]);
+      } else {
+        await pluginManagerService.grantPermissions(plugin.manifest.id, [permission]);
+      }
+      await loadPluginDetails();
+    } catch (error) {
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: { type: 'error', title: '权限更新失败', message: error instanceof Error ? error.message : '未知错误' },
+      });
+    }
+  }, [plugin, loadPluginDetails, dispatch]);
+
   useEffect(() => {
     loadPluginDetails();
   }, [loadPluginDetails]);
 
+  // Loading state
   if (loading) {
     return (
       <div className="plugin-detail-panel">
@@ -332,6 +249,7 @@ const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose
     );
   }
 
+  // Error state
   if (!plugin) {
     return (
       <div className="plugin-detail-panel">
@@ -352,11 +270,7 @@ const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose
           <p className="plugin-author">by {plugin.manifest.author || '未知作者'}</p>
         </div>
         {onClose && (
-          <button
-            className="close-btn"
-            onClick={onClose}
-            title="关闭"
-          >
+          <button className="close-btn" onClick={onClose} title="关闭">
             ✕
           </button>
         )}
@@ -371,115 +285,21 @@ const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose
       )}
 
       {/* Health Status */}
-      <div className="detail-section">
-        <div className="section-header">
-          <h3>健康状态</h3>
-          <button
-            className="refresh-btn"
-            onClick={handleRefreshHealth}
-            disabled={refreshingHealth}
-            title="刷新健康状态"
-          >
-            {refreshingHealth ? '刷新中...' : '🔄 刷新'}
-          </button>
-        </div>
-
-        {health && (
-          <div className={`health-status ${health.status}`}>
-            <div className="health-indicator">
-              <span className={`health-icon ${health.status}`}>
-                {health.status === 'healthy' ? '✓' : health.status === 'warning' ? '⚠' : '✗'}
-              </span>
-              <span className="health-text">
-                {health.status === 'healthy' ? '健康' : health.status === 'warning' ? '警告' : health.status === 'error' ? '错误' : '未知'}
-              </span>
-            </div>
-
-            {health.message && (
-              <p className="health-message">{health.message}</p>
-            )}
-
-            {health.errors && health.errors.length > 0 && (
-              <div className="health-errors">
-                <h4>错误详情:</h4>
-                {health.errors.map((error, index) => (
-                  <div key={index} className="error-item">
-                    <code>{error.code}</code>
-                    <p>{error.message}</p>
-                    {error.timestamp && (
-                      <small>{formatTimestamp(error.timestamp)}</small>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {health.lastChecked && (
-              <p className="last-checked">
-                上次检查: {formatTimestamp(health.lastChecked)}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+      <PluginHealthSection
+        health={health}
+        refreshing={refreshingHealth}
+        onRefresh={handleRefreshHealth}
+      />
 
       {/* Usage Statistics */}
-      {usageStats && (
-        <div className="detail-section">
-          <h3>使用统计</h3>
-          <div className="usage-stats">
-            <div className="stat-item">
-              <span className="stat-label">使用次数:</span>
-              <span className="stat-value">{usageStats.usageCount}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">上次使用:</span>
-              <span className="stat-value">
-                {formatTimestamp(usageStats.lastUsed)}
-              </span>
-            </div>
-            {usageStats.lastExecutionTime && (
-              <div className="stat-item">
-                <span className="stat-label">上次执行时间:</span>
-                <span className="stat-value">
-                  {usageStats.lastExecutionTime}ms
-                </span>
-              </div>
-            )}
-            {usageStats.averageExecutionTime && (
-              <div className="stat-item">
-                <span className="stat-label">平均执行时间:</span>
-                <span className="stat-value">
-                  {usageStats.averageExecutionTime}ms
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <PluginUsageStats stats={usageStats} />
 
       {/* Permissions */}
-      {plugin.manifest.permissions && plugin.manifest.permissions.length > 0 && (
-        <div className="detail-section">
-          <h3>权限</h3>
-          <div className="permissions-list">
-            {plugin.manifest.permissions.map((permission) => {
-              const granted = plugin.grantedPermissions?.has(permission);
-              return (
-                <div key={permission} className="permission-item">
-                  <span className="permission-name">{permission}</span>
-                  <button
-                    className={`permission-toggle ${granted ? 'granted' : ''}`}
-                    onClick={() => handleTogglePermission(permission)}
-                  >
-                    {granted ? '已授予' : '未授予'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <PluginPermissions
+        permissions={plugin.manifest.permissions || []}
+        grantedPermissions={plugin.grantedPermissions}
+        onToggle={handleTogglePermission}
+      />
 
       {/* Triggers */}
       {plugin.manifest.triggers && plugin.manifest.triggers.length > 0 && (
@@ -496,123 +316,19 @@ const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose
       )}
 
       {/* User-defined Abbreviations */}
-      <div className="detail-section">
-        <h3>自定义缩写</h3>
-        <p className="section-description">
-          为此插件设置自定义缩写，快速搜索和触发插件功能
-        </p>
-
-        {/* Add new abbreviation */}
-        <div className="add-abbreviation-form">
-          <input
-            type="text"
-            className="abbreviation-input"
-            placeholder="输入缩写关键词（如：hw）"
-            value={newAbbrKeyword}
-            onChange={(e) => {
-              setNewAbbrKeyword(e.target.value);
-              setAbbrError(null);
-            }}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                handleAddAbbreviation();
-              }
-            }}
-          />
-          <button
-            className="add-abbr-btn"
-            onClick={handleAddAbbreviation}
-            disabled={!newAbbrKeyword.trim()}
-          >
-            添加
-          </button>
-        </div>
-
-        {abbrError && (
-          <p className="abbr-error">{abbrError}</p>
-        )}
-
-        {/* Suggested abbreviations */}
-        {plugin.manifest.name && (
-          <div className="suggestions">
-            <span className="suggestions-label">建议：</span>
-            {PluginAbbreviationService.generateSuggestions(plugin.manifest.name).map((suggestion) => (
-              <button
-                key={suggestion}
-                className="suggestion-chip"
-                onClick={() => setNewAbbrKeyword(suggestion)}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Abbreviations list */}
-        <div className="abbreviations-list">
-          {abbreviations.length === 0 ? (
-            <p className="empty-state">暂无自定义缩写</p>
-          ) : (
-            abbreviations.map((abbr) => (
-              <div key={abbr.keyword} className={`abbr-item ${abbr.enabled ? '' : 'disabled'}`}>
-                <div className="abbr-info">
-                  <code className="abbr-keyword">{abbr.keyword}</code>
-                  <span className="abbr-status">
-                    {abbr.enabled ? '已启用' : '已禁用'}
-                  </span>
-                </div>
-                <div className="abbr-actions">
-                  <button
-                    className="abbr-toggle-btn"
-                    onClick={() => handleToggleAbbreviation(abbr.keyword)}
-                    title={abbr.enabled ? '禁用' : '启用'}
-                  >
-                    {abbr.enabled ? '🔒' : '🔓'}
-                  </button>
-                  <button
-                    className="abbr-remove-btn"
-                    onClick={() => handleRemoveAbbreviation(abbr.keyword)}
-                    title="删除"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <PluginAbbreviations
+        pluginName={plugin.manifest.name}
+        abbreviations={abbrState.abbreviations}
+        newKeyword={abbrState.newAbbrKeyword}
+        error={abbrState.abbrError}
+        onKeywordChange={abbrState.handleKeywordChange}
+        onAdd={abbrState.handleAdd}
+        onRemove={abbrState.handleRemove}
+        onToggle={abbrState.handleToggle}
+      />
 
       {/* Metadata */}
-      <div className="detail-section">
-        <h3>元数据</h3>
-        <div className="metadata">
-          <div className="metadata-item">
-            <span className="metadata-label">插件 ID:</span>
-            <span className="metadata-value">{plugin.manifest.id}</span>
-          </div>
-          <div className="metadata-item">
-            <span className="metadata-label">触发器:</span>
-            <span className="metadata-value">
-              {plugin.manifest.triggers?.join(', ') || '无'}
-            </span>
-          </div>
-          {plugin.installedAt && (
-            <div className="metadata-item">
-              <span className="metadata-label">安装时间:</span>
-              <span className="metadata-value">
-                {formatTimestamp(plugin.installedAt)}
-              </span>
-            </div>
-          )}
-          <div className="metadata-item">
-            <span className="metadata-label">状态:</span>
-            <span className={`metadata-value ${plugin.enabled ? 'enabled' : 'disabled'}`}>
-              {plugin.enabled ? '已启用' : '已禁用'}
-            </span>
-          </div>
-        </div>
-      </div>
+      <PluginMetadata plugin={plugin} />
     </div>
   );
 };

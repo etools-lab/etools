@@ -5,9 +5,7 @@
 
 import type { SearchResult } from '@/types/search';
 import convert from 'color-convert';
-
-// Check if running in Tauri environment
-const isTauri = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+import { invoke } from '@tauri-apps/api/core';
 
 // Color format detection patterns (T037)
 const COLOR_PATTERNS = {
@@ -331,12 +329,7 @@ export class ActionService {
           hsl: hslString,
         },
         action: async () => {
-          if (!isTauri()) {
-            console.warn('Not in Tauri environment, skipping clipboard paste');
-            return;
-          }
           try {
-            const { invoke } = await import('@tauri-apps/api/core');
             await invoke('paste_clipboard_item', { id: 'clipboard-temp' });
           } catch (error) {
             console.error('Failed to paste clipboard item:', error);
@@ -376,18 +369,10 @@ export class ActionService {
       type: 'url',
       score: 0.9,
       action: async () => {
-        if (!isTauri()) {
-          // 开发环境降级：在浏览器窗口打开
-          window.open(url, '_blank');
-          return;
-        }
         try {
-          const { invoke } = await import('@tauri-apps/api/core');
           await invoke('open_url', { url });
         } catch (error) {
           console.error('[actionService] Failed to open URL via backend:', error);
-          // 不再降级到前端 window.open()，遵循架构原则
-          // TODO: 可以向用户显示错误提示
         }
       },
     };
@@ -412,18 +397,10 @@ export class ActionService {
       score: 0.95,
       source: prefix,
       action: async () => {
-        if (!isTauri()) {
-          // 开发环境降级：在浏览器窗口打开
-          window.open(url, '_blank');
-          return;
-        }
         try {
-          const { invoke } = await import('@tauri-apps/api/core');
           await invoke('open_url', { url });
         } catch (error) {
           console.error('[actionService] Failed to open URL via backend:', error);
-          // 不再降级到前端 window.open()，遵循架构原则
-          // TODO: 可以向用户显示错误提示
         }
       },
     };

@@ -14,9 +14,6 @@ import PluginSettingsPanel from './PluginSettingsPanel';
 import { AbbreviationManager } from './AbbreviationManager';
 import './SettingsPanel.css';
 
-// Check if running in Tauri environment
-const isTauri = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
-
 interface SettingsPanelProps {
   onClose: () => void;
 }
@@ -445,10 +442,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         await invoke('open_url', { url });
                       } catch (error) {
                         console.error('[SettingsPanel] Failed to open URL:', error);
-                        // 降级方案：开发环境使用 window.open
-                        if (!isTauri()) {
-                          window.open(url, '_blank');
-                        }
                       }
                     }}
                   >

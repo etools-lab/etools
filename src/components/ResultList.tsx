@@ -15,15 +15,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { SearchResult } from "@/types/search";
 import "@/styles/components/ResultList.css";
 
-// Type declaration for Tauri environment detection
-declare global {
-  interface Window {
-    __TAURI__?: unknown;
-  }
-}
-
-const isTauri = () => typeof window !== 'undefined' && window.__TAURI__ !== undefined;
-
 interface ResultListProps {
   results: SearchResult[];
   selectedIndex: number;
@@ -57,7 +48,7 @@ const ResultItem = memo(({
     mountedRef.current = true;
 
     // Only load icon for app results without existing icon
-    if (result.type === 'app' && !result.icon && result.path && !loadingRef.current && isTauri()) {
+    if (result.type === 'app' && !result.icon && result.path && !loadingRef.current) {
       loadingRef.current = true;
 
       const loadIcon = async () => {
