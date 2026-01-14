@@ -79,14 +79,7 @@ etools 是一个现代化的桌面生产力启动器，通过全局快捷键快�
   - URL 远程安装
   - NPM 包安装
 
-#### 内置插件
-
-- `hello-world` - 示例插件
-- `qrcode` - 二维码生成器
-- `json-formatter` - JSON 格式化工具
-- `timestamp` - 时间戳转换
-- `regex-tester` - 正则表达式测试
-- `sandbox-demo` - 沙箱环境演示
+**注意**: etools 是一个干净的容器，不包含任何内置插件。所有插件都需要用户手动安装。
 
 ### 快捷键
 
@@ -212,13 +205,7 @@ etools/
 │   │   ├── marketplaceService.ts # 插件市场服务
 │   │   └── errorLogger.ts       # 错误日志服务
 │   ├── lib/                     # 工具库
-│   │   └── plugins/             # 内置插件
-│   │       ├── hello-world/
-│   │       ├── qrcode/
-│   │       ├── json-formatter/
-│   │       ├── timestamp/
-│   │       ├── regex-tester/
-│   │       └── sandbox-demo/
+│   │   └── plugin-sdk/          # 插件 SDK
 │   ├── styles/                  # 样式文件 (57 个文件)
 │   │   ├── design-tokens.css    # 设计变量
 │   │   ├── theme-light.css      # 浅色主题
@@ -413,14 +400,19 @@ interface PluginSearchResult {
 
 ### 创建插件
 
-1. 在 `src/lib/plugins/` 或 `example-plugins/` 创建插件目录
+etools 不包含任何内置插件，但你可以创建自己的插件：
+
+1. 创建插件目录结构
 2. 实现 `index.ts` 导出 `manifest` 和 `search` 函数
 3. 可选：实现 `ui.tsx` 自定义 UI 组件
+4. 通过插件管理器或命令行安装插件
+
+详细的插件开发指南请参考 [docs/NPM_PLUGIN_DEV_GUIDE.md](docs/NPM_PLUGIN_DEV_GUIDE.md)
 
 #### 示例插件
 
 ```typescript
-// src/lib/plugins/my-plugin/index.ts
+// my-plugin/index.ts
 import { Plugin, PluginSearchResult } from '@/types/plugin';
 
 export const manifest: Plugin = {

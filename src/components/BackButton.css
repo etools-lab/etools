@@ -1,21 +1,21 @@
 .back-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
   background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius);
-  color: var(--color-text);
+  border: var(--border-width) solid rgb(var(--color-border-default));
+  border-radius: var(--radius-md);
+  color: rgb(var(--color-text-primary));
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 150ms ease;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--duration-fast) var(--easing-out);
 }
 
 .back-button:hover {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-primary);
+  background: rgb(var(--color-bg-secondary));
+  border-color: rgb(var(--color-accent-primary));
 }
 
 .back-button:active {
@@ -23,8 +23,8 @@
 }
 
 .back-button:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: var(--border-width-lg) solid rgb(var(--color-accent-primary));
+  outline-offset: var(--spacing-1);
 }
 
 .back-button svg {

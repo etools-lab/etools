@@ -43,9 +43,6 @@ function PluginSettingsPanel({ className = '' }: PluginSettingsPanelProps) {
       setIsLoading(true);
       setError(null);
 
-      // Load built-in plugins
-      await pluginLoader.loadBuiltInPlugins();
-
       // Get all manifests
       const manifests = pluginLoader.getAllManifests();
       setPlugins(manifests);

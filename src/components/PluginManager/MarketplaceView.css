@@ -22,8 +22,8 @@
 
 .search-input {
   width: 100%;
-  padding: 0.75rem var(--spacing-4);
-  padding-right: 3rem; /* Make room for loading indicator */
+  padding: var(--spacing-3) var(--spacing-4);
+  padding-right: var(--spacing-12); /* Make room for loading indicator */
   border: var(--border-width) solid rgb(var(--color-border-default));
   border-radius: var(--radius-sm);
   font-size: var(--font-size-base);
@@ -74,7 +74,7 @@
 }
 
 .category-filter:hover {
-  background: var(--color-bg-hover);
+  background: rgb(var(--color-bg-hover));
 }
 
 .category-filter.active {
@@ -165,7 +165,7 @@
 }
 
 .plugin-card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-color-sm);
 }
 
 .plugin-card.installed {
@@ -246,7 +246,7 @@
 }
 
 .star.filled {
-  color: #ffc107;
+  color: rgb(var(--color-warning));
 }
 
 .rating-count {
@@ -321,7 +321,7 @@
 }
 
 .install-btn:hover:not(:disabled) {
-  background: rgb(var(--color-accent-hover));
+  background: rgb(var(--color-accent-primary-hover));
 }
 
 .install-btn:disabled {
@@ -357,7 +357,7 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: rgb(var(--color-accent-hover));
+  background: rgb(var(--color-accent-primary-hover));
 }
 
 .btn-secondary {
@@ -367,7 +367,7 @@
 }
 
 .btn-secondary:hover {
-  background: var(--color-bg-hover);
+  background: rgb(var(--color-bg-hover));
 }
 
 /* Load More */

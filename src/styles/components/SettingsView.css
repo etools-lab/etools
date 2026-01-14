@@ -1,51 +1,58 @@
 /**
- * PluginManager Component Styles
- * 与 SearchView 和 SettingsView 保持一致的设计风格
+ * SettingsView Styles
+ * 单窗口架构下的设置视图样式，与 SearchView 保持一致的设计风格
  */
 
 /* ============================================
-   PLUGIN MANAGER CONTAINER
+   SETTINGS WINDOW CONTAINER
    ============================================ */
 
-.plugin-manager {
+.settings-window {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  background: rgb(var(--color-bg-secondary));
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 /* ============================================
-   PLUGIN MANAGER HEADER
+   SETTINGS HEADER
    ============================================ */
 
-.plugin-manager-header {
+.settings-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
   background: rgb(var(--color-bg-primary));
   border-bottom: var(--border-width) solid rgb(var(--color-border-subtle));
+  position: relative;
 }
 
-.plugin-manager-title {
+.settings-header h2 {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: rgb(var(--color-text-primary));
   margin: 0;
-  padding: var(--spacing-4);
-  padding-bottom: var(--spacing-2);
+  flex: 1;
 }
 
 /* ============================================
-   PLUGIN MANAGER TABS
+   SETTINGS TABS
    ============================================ */
 
-.plugin-manager-tabs {
+.settings-tabs {
   display: flex;
   gap: var(--spacing-1);
-  padding: 0 var(--spacing-4) var(--spacing-3) var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-4);
+  background: rgb(var(--color-bg-secondary));
+  border-bottom: var(--border-width) solid rgb(var(--color-border-subtle));
 }
 
-.tab-button {
+.settings-tab {
   padding: var(--spacing-2) var(--spacing-4);
   background: transparent;
   border: none;
@@ -58,81 +65,54 @@
   position: relative;
 }
 
-.tab-button:hover {
+.settings-tab:hover {
   background: rgb(var(--color-bg-hover));
   color: rgb(var(--color-text-primary));
 }
 
-.tab-button.active {
-  background: rgb(var(--color-bg-elevated));
+.settings-tab.active {
+  background: rgb(var(--color-bg-primary));
   color: rgb(var(--color-accent-primary));
   font-weight: var(--font-weight-semibold);
   box-shadow: var(--shadow-color-sm);
 }
 
 /* ============================================
-   PLUGIN MANAGER CONTENT
+   SETTINGS CONTENT
    ============================================ */
 
-.plugin-manager-content {
+.settings-content {
   flex: 1;
   overflow-y: auto;
   background: rgb(var(--color-bg-secondary));
 }
 
-/* ============================================
-   PLUGIN DETAIL PANEL OVERLAY
-   ============================================ */
-
-.plugin-detail-panel-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn var(--duration-normal) var(--easing-out);
+.settings-section {
+  padding: var(--spacing-4);
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.settings-section--full {
+  height: 100%;
+  padding: 0;
 }
 
 /* ============================================
    SCROLLBAR STYLING
    ============================================ */
 
-.plugin-manager-content::-webkit-scrollbar {
+.settings-content::-webkit-scrollbar {
   width: 8px;
 }
 
-.plugin-manager-content::-webkit-scrollbar-track {
+.settings-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.plugin-manager-content::-webkit-scrollbar-thumb {
+.settings-content::-webkit-scrollbar-thumb {
   background: rgb(var(--color-border-default));
   border-radius: var(--radius-full);
 }
 
-.plugin-manager-content::-webkit-scrollbar-thumb:hover {
+.settings-content::-webkit-scrollbar-thumb:hover {
   background: rgb(var(--color-border-strong));
-}
-
-/* ============================================
-   DESIGN TOKEN OVERRIDES
-   ============================================ */
-
-.plugin-manager {
-  --color-bg-elevated: var(--color-bg-primary);
 }

@@ -16,10 +16,10 @@
 }
 
 .plugin-list-item:hover {
-  background-color: var(--color-bg-hover);
+  background-color: rgb(var(--color-bg-hover));
   border-color: rgb(var(--color-border-strong));
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-color-sm);
 }
 
 .plugin-list-item.selected {
@@ -98,7 +98,7 @@
 .plugin-item-version {
   font-size: var(--font-size-sm);
   color: rgb(var(--color-text-tertiary));
-  padding: 2px 6px;
+  padding: var(--spacing-1) var(--spacing-2);
   background-color: rgb(var(--color-bg-tertiary));
   border-radius: var(--radius-sm);
 }
@@ -130,7 +130,7 @@
 .search-highlight {
   background-color: rgba(var(--color-accent-primary), 0.2);
   color: rgb(var(--color-text-primary));
-  padding: 0 2px;
+  padding: 0 var(--spacing-1);
   border-radius: var(--radius-sm);
 }
 
@@ -142,7 +142,7 @@
 }
 
 .plugin-toggle-btn {
-  padding: 6px var(--spacing-3);
+  padding: var(--spacing-1) var(--spacing-3);
   border: var(--border-width) solid rgb(var(--color-border-default));
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
@@ -154,7 +154,7 @@
 }
 
 .plugin-toggle-btn:hover {
-  background-color: var(--color-bg-hover);
+  background-color: rgb(var(--color-bg-hover));
 }
 
 .plugin-toggle-btn.enabled {
@@ -174,14 +174,14 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   border-radius: var(--radius-md);
-  border: 1px solid rgb(var(--color-border));
+  border: var(--border-width) solid rgb(var(--color-border-error));
   cursor: pointer;
   transition: all var(--duration-normal) var(--easing-default);
   background-color: rgb(var(--color-bg-primary));
   color: rgb(var(--color-error));
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--spacing-1);
 }
 
 .plugin-uninstall-btn:hover {
@@ -200,7 +200,7 @@
   position: absolute;
   top: var(--spacing-2);
   right: var(--spacing-2);
-  padding: 2px 6px;
+  padding: var(--spacing-1) var(--spacing-2);
   background-color: rgb(var(--color-accent-primary));
   color: rgb(var(--color-text-inverse));
   font-size: var(--font-size-xs);
@@ -238,7 +238,7 @@
   }
 
   .plugin-toggle-btn {
-    padding: 5px var(--spacing-3);
+    padding: var(--spacing-1) var(--spacing-3);
     font-size: var(--font-size-sm);
   }
 }

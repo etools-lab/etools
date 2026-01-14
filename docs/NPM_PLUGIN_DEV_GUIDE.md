@@ -212,3 +212,68 @@ hello: YourName
 - [NPM 插件规范](./NPM_PLUGIN_SPEC.md)
 - [迁移指南](./NPM_MIGRATION_GUIDE.md)
 - [插件沙箱文档](./PLUGIN_SANDBOX_FINAL_SUMMARY.md)
+- [插件 UI 开发指南](./PLUGIN_UI_GUIDE.md)
+
+## 插件 UI 一致性
+
+为了让插件与 etools 主容器保持一致的设计风格，插件开发者应该：
+
+### 使用 etools UI 组件库
+
+```typescript
+// 从 @etools/plugin-sdk 导入 UI 组件
+import {
+  PluginUIContainer,
+  Button,
+  Input,
+  Card,
+  Badge,
+} from '@etools/plugin-sdk';
+
+// 使用 PluginUIContainer 创建一致的 UI
+export function MyPluginUI() {
+  return (
+    <PluginUIContainer
+      title="我的插件"
+      icon="🔌"
+      actions={
+        <>
+          <Button variant="primary">确认</Button>
+          <Button variant="ghost">取消</Button>
+        </>
+      }
+    >
+      {/* 插件内容 */}
+    </PluginUIContainer>
+  );
+}
+```
+
+### 使用设计令牌
+
+```css
+/* 使用 CSS 变量确保一致性 */
+.my-plugin-element {
+  padding: var(--spacing-4);
+  background: rgb(var(--color-bg-primary));
+  border-radius: var(--radius-md);
+  color: rgb(var(--color-text-primary));
+}
+```
+
+### 可用组件
+
+- **PluginUIContainer**: 标准插件容器
+- **Button**: 按钮（primary, secondary, ghost, danger）
+- **Input**: 输入框（支持图标、错误状态）
+- **Card**: 卡片容器（default, elevated, outlined, glass）
+- **Badge**: 徽章（success, warning, error, info）
+- **Spinner**: 加载指示器
+- **Kbd**: 键盘快捷键显示
+- **Skeleton**: 骨架屏占位符
+
+详细的 UI 开发指南请参考 [PLUGIN_UI_GUIDE.md](./PLUGIN_UI_GUIDE.md)
+
+### UI 示例插件
+
+查看 `example-plugins/ui-consistency-demo/` 获取完整的 UI 最佳实践示例。

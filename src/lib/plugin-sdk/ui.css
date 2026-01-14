@@ -1,0 +1,26 @@
+/**
+ * Plugin UI Styles Export
+ * Exports etools design tokens and styles for plugin developers
+ *
+ * Plugin developers should import this in their ui.tsx:
+ * import '@etools/plugin-sdk/ui.css';
+ */
+
+/* Import design tokens */
+@import '../../styles/design-tokens.css';
+
+/* Import global styles */
+@import '../../styles/global.css';
+
+/* Import theme styles */
+@import '../../styles/theme-light.css';
+@import '../../styles/theme-dark.css';
+
+/* Import all UI component styles */
+@import '../../components/ui/Button.css';
+@import '../../components/ui/Input.css';
+@import '../../components/ui/Card.css';
+@import '../../components/ui/Badge.css';
+@import '../../components/ui/Spinner.css';
+@import '../../components/ui/Kbd.css';
+@import '../../components/ui/Skeleton.css';

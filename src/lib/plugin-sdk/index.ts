@@ -14,6 +14,9 @@ import type {
 } from './types';
 import { PluginCommands } from './types';
 
+// Re-export UI components for plugin developers
+export * from './ui';
+
 /**
  * Create plugin context for a given plugin
  */

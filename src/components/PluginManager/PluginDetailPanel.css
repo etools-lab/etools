@@ -96,7 +96,7 @@
 }
 
 .close-btn:hover {
-  background: var(--color-bg-hover);
+  background: rgb(var(--color-bg-hover));
   color: rgb(var(--color-text-primary));
 }
 
@@ -149,7 +149,7 @@
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--color-bg-hover);
+  background: rgb(var(--color-bg-hover));
   color: rgb(var(--color-text-primary));
 }
 
@@ -331,7 +331,7 @@
 }
 
 .permission-toggle:hover {
-  background: var(--color-bg-hover);
+  background: rgb(var(--color-bg-hover));
 }
 
 .permission-toggle.granted {

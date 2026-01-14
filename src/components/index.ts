@@ -4,8 +4,6 @@
  */
 
 // Main components
-export { SearchWindow } from './SearchWindow';
-export { SettingsPanel } from './SettingsPanel';
 export { ResultList } from './ResultList';
 export { ErrorBoundary, withErrorBoundary } from './ErrorBoundary';
 

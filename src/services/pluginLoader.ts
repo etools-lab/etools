@@ -16,12 +16,6 @@ import { getPluginSandbox } from './pluginSandbox';
 // Constants
 // ============================================================================
 
-/** Path prefix for built-in plugins */
-const BUILTIN_PLUGIN_PREFIX = '../lib/plugins/';
-
-/** Vite absolute path prefix for built-in plugins */
-const BUILTIN_PLUGIN_VITE_PREFIX = '/src/lib/plugins/';
-
 /** Plugin file extension */
 const PLUGIN_FILE_EXTENSION = '/index.ts';
 
@@ -50,15 +44,6 @@ const PERMISSION_MAP: Record<string, PluginPermission> = {
 
 /** Valid plugin sources for loading from backend */
 const VALID_PLUGIN_SOURCES = ['marketplace', 'local'] as const;
-
-/** Built-in plugin IDs */
-const BUILTIN_PLUGIN_IDS = [
-  'hello-world',
-  'timestamp',
-  'json-formatter',
-  'regex-tester',
-  'sandbox-demo',
-] as const;
 
 /** Unknown plugin manifest fallback */
 const UNKNOWN_MANIFEST: PluginManifest = {
@@ -146,16 +131,10 @@ function extractPluginFromModule(module: ModuleWithDefault): RawPluginModule {
 
 /**
  * Normalize module path for Vite dynamic import
+ * Plugin modules are loaded from file system via blob URLs
  */
 function normalizeModulePath(modulePath: string): string {
-  // Built-in plugin: Convert relative path to absolute for Vite
-  if (modulePath.startsWith(BUILTIN_PLUGIN_PREFIX)) {
-    const parts = modulePath.split('/').filter(Boolean);
-    const pluginId = parts[parts.length - 2];
-    return `${BUILTIN_PLUGIN_VITE_PREFIX}${pluginId}${PLUGIN_FILE_EXTENSION}`;
-  }
-
-  // npm or local plugin: Return as-is (will be converted to blob URL later)
+  // Plugin path is returned as-is (will be converted to blob URL if needed)
   return modulePath;
 }
 
@@ -379,7 +358,7 @@ export class PluginLoader {
 
   /**
    * Load a plugin from a module
-   * Supports built-in plugins (src/lib/plugins/) and npm plugins
+   * Supports plugins installed from file system
    */
   async loadPlugin(modulePath: string): Promise<PluginLoadResult> {
     try {
@@ -495,34 +474,6 @@ export class PluginLoader {
    */
   async loadInstalledPlugins(): Promise<PluginLoadResult[]> {
     return this.loadInstalledNpmPlugins();
-  }
-
-  /**
-   * Load built-in plugins and installed npm plugins
-   */
-  async loadBuiltInPlugins(): Promise<PluginLoadResult[]> {
-    const results: PluginLoadResult[] = [];
-
-    // Load built-in plugins
-    for (const pluginId of BUILTIN_PLUGIN_IDS) {
-      if (this.isLoaded(pluginId)) {
-        console.log(`${logPrefix('Loader')} Skipping already loaded: ${pluginId}`);
-        continue;
-      }
-
-      const result = await this.loadPlugin(`${BUILTIN_PLUGIN_PREFIX}${pluginId}${PLUGIN_FILE_EXTENSION}`);
-      results.push(result);
-    }
-
-    // Load installed npm plugins
-    try {
-      const npmResults = await this.loadInstalledNpmPlugins();
-      results.push(...npmResults);
-    } catch (error) {
-      console.error(`${logPrefix('Loader')} Failed to load npm plugins:`, error);
-    }
-
-    return results;
   }
 
   /**

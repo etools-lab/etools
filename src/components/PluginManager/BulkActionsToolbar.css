@@ -51,7 +51,7 @@
 .bulk-action-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-1);
   padding: var(--spacing-2) var(--spacing-3);
   border: var(--border-width) solid rgb(var(--color-border-default));
   border-radius: var(--radius-sm);
@@ -64,7 +64,7 @@
 }
 
 .bulk-action-btn:hover {
-  background-color: var(--color-bg-hover);
+  background-color: rgb(var(--color-bg-hover));
   border-color: rgb(var(--color-border-strong));
 }
 
@@ -109,7 +109,7 @@
 }
 
 .bulk-action-btn.bulk-cancel:hover {
-  background-color: var(--color-bg-hover);
+  background-color: rgb(var(--color-bg-hover));
   color: rgb(var(--color-text-primary));
 }
 

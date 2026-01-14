@@ -36,7 +36,7 @@
 .input:focus {
   outline: none;
   border-color: rgb(var(--color-accent-primary));
-  box-shadow: 0 0 0 3px rgba(var(--color-accent-primary), 0.1);
+  box-shadow: 0 0 0 var(--spacing-1) rgba(var(--color-accent-primary), 0.1);
 }
 
 .input:disabled {
@@ -119,7 +119,7 @@
 /* Underline variant */
 .input-wrapper--underline .input {
   border: none;
-  border-bottom: 2px solid rgb(var(--color-border-default));
+  border-bottom: var(--border-width-lg) solid rgb(var(--color-border-default));
   border-radius: 0;
   padding-left: 0;
   padding-right: 0;

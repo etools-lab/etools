@@ -283,7 +283,7 @@ export function SearchView() {
             ref={inputRef}
             type="search"
             className="search-input"
-            placeholder="Search apps..."
+            placeholder="搜索应用和插件 / 粘贴文件或图片..."
             value={query}
             onChange={e => {
               isUserTypingRef.current = true;
@@ -375,7 +375,7 @@ export function SearchView() {
                 <h3 className="default-section__title">最近使用</h3>
                 <div className="default-section__items">
                   {recentApps.length > 0 ? (
-                    recentApps.map((app) => (
+                    recentApps.slice(0, 5).map((app) => (
                       <RecentAppItem
                         key={app.id}
                         app={app}
@@ -399,28 +399,34 @@ export function SearchView() {
                 </div>
               </div>
               <div className="default-section">
-                <h3 className="default-section__title">已固定</h3>
-                <div className="default-section__items">
-                  <div className="default-item">
-                    <span className="default-item__icon">💡</span>
-                    <span className="default-item__text">暂无固定应用</span>
-                  </div>
+                <div className="default-section__header">
+                  <h3 className="default-section__title">应用市场</h3>
+                  <button className="default-section__more">更多</button>
                 </div>
-              </div>
-              <div className="default-section">
-                <h3 className="default-section__title">推荐插件</h3>
-                <div className="default-section__items">
+                <div className="default-section__items default-section__items--marketplace">
                   <div className="default-item">
-                    <span className="default-item__icon">🔢</span>
-                    <span className="default-item__text">计算器 - 输入数学表达式</span>
+                    <span className="default-item__icon">📁</span>
+                    <span className="default-item__text">微宅计划</span>
                   </div>
                   <div className="default-item">
-                    <span className="default-item__icon">🎨</span>
-                    <span className="default-item__text">颜色转换 - HEX/RGB/HSL</span>
+                    <span className="default-item__icon">🖼️</span>
+                    <span className="default-item__text">Photor -...</span>
                   </div>
                   <div className="default-item">
-                    <span className="default-item__icon">🔍</span>
-                    <span className="default-item__text">网页搜索 - 快速搜索</span>
+                    <span className="default-item__icon">⛰️</span>
+                    <span className="default-item__text">墙口算法...</span>
+                  </div>
+                  <div className="default-item">
+                    <span className="default-item__icon">📊</span>
+                    <span className="default-item__text">泡泡规划器</span>
+                  </div>
+                  <div className="default-item">
+                    <span className="default-item__icon">💰</span>
+                    <span className="default-item__text">汇率计算器</span>
+                  </div>
+                  <div className="default-item">
+                    <span className="default-item__icon">🎬</span>
+                    <span className="default-item__text">视频去水印</span>
                   </div>
                 </div>
               </div>

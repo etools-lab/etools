@@ -24,7 +24,7 @@
   --color-border-strong: 148, 163, 184;
 
   --color-accent-primary: 59, 130, 246;
-  --color-accent-hover: 37, 99, 235;
+  --color-accent-primary-hover: 37, 99, 235;
   --color-accent-active: 29, 78, 216;
   
   --color-success: 34, 197, 94;
@@ -159,6 +159,7 @@
   --header-height: 56px;
   --result-item-height: 56px;
   --border-width: 1px;
+  --border-width-lg: 3px;
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
   

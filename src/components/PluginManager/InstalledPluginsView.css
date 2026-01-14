@@ -95,7 +95,7 @@
 /* Buttons */
 .btn-primary,
 .btn-secondary {
-  padding: 10px var(--spacing-5);
+  padding: var(--spacing-2) var(--spacing-5);
   border: none;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-base);
@@ -110,7 +110,7 @@
 }
 
 .btn-primary:hover {
-  background-color: rgb(var(--color-accent-hover));
+  background-color: rgb(var(--color-accent-primary-hover));
 }
 
 .btn-secondary {
@@ -120,7 +120,7 @@
 }
 
 .btn-secondary:hover {
-  background-color: var(--color-bg-hover);
+  background-color: rgb(var(--color-bg-hover));
 }
 
 /* Responsive */

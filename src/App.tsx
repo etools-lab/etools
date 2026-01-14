@@ -24,25 +24,16 @@ import "@/styles/theme-light.css";
 import "@/styles/theme-dark.css";
 // 组件样式
 import "@/styles/components/ViewContainer.css";
-import "@/styles/components/SearchWindow.css";
+import "@/styles/components/SearchView.css";
+import "@/styles/components/SettingsView.css";
 import "@/styles/components/ResultList.css";
-import "@/styles/components/SettingsWindow.css";
 import "@/styles/components/PluginManager/PluginManager.css";
-import "@/styles/components/SidebarPanel.css";
 
 function App() {
   const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const initializeApp = async () => {
-      // ✅ 内置插件在应用启动时加载，不在插件管理器显示
-      try {
-        await pluginLoader.loadBuiltInPlugins();
-        console.log('[App] Built-in plugins loaded successfully');
-      } catch (error) {
-        console.error('[App] Failed to load built-in plugins:', error);
-      }
-
       // ✅ 加载已安装的插件（从文件系统）
       try {
         await pluginLoader.loadInstalledPlugins();

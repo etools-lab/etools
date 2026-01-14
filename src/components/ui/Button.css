@@ -123,11 +123,11 @@
 }
 
 .btn--danger:hover:not(:disabled) {
-  background: #dc2626;
+  filter: brightness(0.9);
 }
 
 .btn--danger:active:not(:disabled) {
-  background: #b91c1c;
+  filter: brightness(0.8);
   transform: scale(0.98);
 }
 

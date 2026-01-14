@@ -54,7 +54,7 @@
   margin: var(--spacing-4) 0 0 0;
   padding: var(--spacing-3) var(--spacing-4);
   background: rgba(var(--color-accent-primary), 0.05);
-  border-left: 3px solid rgb(var(--color-accent-primary));
+  border-left: var(--border-width-lg) solid rgb(var(--color-accent-primary));
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: rgb(var(--color-text-secondary));
@@ -110,7 +110,7 @@
 }
 
 .hotkey-display__button--primary:hover {
-  background: rgb(var(--color-accent-hover));
+  background: rgb(var(--color-accent-primary-hover));
 }
 
 /* Warning */
