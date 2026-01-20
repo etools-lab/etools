@@ -5,7 +5,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import type { Plugin } from '../../types/plugin';
-import { getAriaLabel, getAriaDescription, announceToScreenReader } from '../../lib/accessibility';
+import { getAriaLabel, announceToScreenReader } from '../../lib/accessibility';
 import './PluginListItem.css';
 
 interface PluginListItemProps {
@@ -171,10 +171,9 @@ const PluginListItem: React.FC<PluginListItemProps> = ({
 
       {/* Plugin Icon/Avatar */}
       <div className="plugin-item-icon" aria-hidden="true">
-        {plugin.manifest.name.charAt(0).toUpperCase()}
+        {plugin.manifest.name.charAt(0)?.toUpperCase() || '?'}
       </div>
 
-      {/* Plugin Info */}
       <div className="plugin-item-info">
         <div className="plugin-item-header">
           <h3 className="plugin-item-name" id={`plugin-name-${plugin.manifest.id}`}>
@@ -207,7 +206,6 @@ const PluginListItem: React.FC<PluginListItemProps> = ({
         </div>
       </div>
 
-      {/* Plugin Actions */}
       <div className="plugin-item-actions" role="group" aria-label="插件操作">
         <button
           className={`plugin-toggle-btn ${plugin.enabled ? 'enabled' : 'disabled'}`}

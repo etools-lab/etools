@@ -106,6 +106,7 @@ pub fn plugin_list(handle: AppHandle) -> Result<Vec<Plugin>, String> {
                     installed_at,
                     install_path: path.to_string_lossy().to_string(),
                     source: crate::models::plugin::PluginSource::Local,
+                    update_metadata: None,
                 });
             }
         }
@@ -323,7 +324,7 @@ pub fn get_plugin_enabled_state(handle: &AppHandle, plugin_id: &str) -> Result<b
 }
 
 /// Remove plugin state (US4)
-fn remove_plugin_state(handle: &AppHandle, plugin_id: &str) -> Result<(), String> {
+pub fn remove_plugin_state(handle: &AppHandle, plugin_id: &str) -> Result<(), String> {
     // Load existing state
     let state = load_plugin_state(handle)?;
     let mut new_state = state.clone();
@@ -404,6 +405,7 @@ pub fn install_plugin(
         installed_at,
         install_path: target_dir.to_string_lossy().to_string(),
         source: crate::models::plugin::PluginSource::Local,
+        update_metadata: None,
     })
 }
 
@@ -514,6 +516,7 @@ pub fn reload_plugin(
         installed_at: now,
         install_path: String::new(),
         source: crate::models::plugin::PluginSource::Local,
+        update_metadata: None,
     })
 }
 
@@ -991,6 +994,7 @@ pub async fn plugin_install(
         installed_at,
         install_path: plugin_path.to_string_lossy().to_string(),
         source: crate::models::plugin::PluginSource::Local,
+        update_metadata: None,
     })
 }
 
@@ -1132,6 +1136,7 @@ pub async fn plugin_enable(handle: AppHandle, plugin_id: String) -> Result<Plugi
         install_path: actual_path.to_string_lossy().to_string(),
         source: crate::models::plugin::PluginSource::Local,
         installed_at,
+        update_metadata: None,
     })
 }
 
@@ -1176,6 +1181,7 @@ pub async fn plugin_disable(handle: AppHandle, plugin_id: String) -> Result<Plug
         install_path: actual_path.to_string_lossy().to_string(),
         source: crate::models::plugin::PluginSource::Local,
         installed_at,
+        update_metadata: None,
     })
 }
 

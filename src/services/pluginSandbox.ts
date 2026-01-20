@@ -275,7 +275,7 @@ export class PluginSandbox {
       return {
         pluginId,
         success: false,
-        output: null,
+        results: [],
         error: `Plugin ${pluginId} not found in sandbox`,
         executionTime: performance.now() - startTime,
       };
@@ -285,7 +285,7 @@ export class PluginSandbox {
       return {
         pluginId,
         success: false,
-        output: null,
+        results: [],
         error: `Plugin ${pluginId} is disabled`,
         executionTime: performance.now() - startTime,
       };
@@ -296,7 +296,7 @@ export class PluginSandbox {
 
     try {
       // Execute with timeout
-      const result = await this.executePlugin(
+      const result = await this.executeInWorker(
         worker,
         pluginId,
         code,
@@ -397,8 +397,8 @@ export class PluginSandbox {
       const result = await this.executeInWorker(
         worker,
         pluginId,
-        code,
-        args,
+        context.pluginPath,
+        { query },
         context.grantedPermissions,
         timeout ?? this.config.defaultTimeout
       );
@@ -494,7 +494,7 @@ export class PluginSandbox {
               worker.removeEventListener('message', handler);
               resolve({
                 pluginId,
-                results: message.output || [],
+                results: 'results' in message ? message.results : message.output || [],
                 success: message.success,
                 error: message.error,
                 executionTime: performance.now() - startTime,

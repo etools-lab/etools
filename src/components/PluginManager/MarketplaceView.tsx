@@ -37,15 +37,11 @@ const MarketplaceView: React.FC = () => {
   const [installingPluginName, setInstallingPluginName] = useState<string | null>(null);
   const [installedPluginNames, setInstalledPluginNames] = useState<Set<string>>(new Set());
 
-  // 分类列表
   const categories: CategoryInfo[] = useMemo(() => [
     { key: 'all', name: '全部', icon: '📦' },
-    { key: 'productivity', name: '生产力工具', icon: '⚡' },
-    { key: 'developer', name: '开发工具', icon: '💻' },
-    { key: 'utilities', name: '实用工具', icon: '🔧' },
-    { key: 'search', name: '搜索增强', icon: '🔍' },
-    { key: 'media', name: '媒体处理', icon: '🎬' },
-    { key: 'integration', name: '第三方集成', icon: '🔗' },
+    { key: 'productivity', name: '生产力', icon: '⚡' },
+    { key: 'developer', name: '开发', icon: '💻' },
+    { key: 'utilities', name: '工具', icon: '🔧' },
   ], []);
 
   /**
@@ -85,8 +81,8 @@ const MarketplaceView: React.FC = () => {
   const loadInstalledPlugins = useCallback(async () => {
     try {
       const installedPlugins = await pluginManagerService.getInstalledPlugins();
-      // 使用 entry_point (npm 包名) 而不是 name (显示名称) 来匹配
-      const installedNames = new Set(installedPlugins.map((p) => p.entryPoint));
+      // 使用 name (显示名称) 而不是 entry_point (npm 包名) 来匹配
+      const installedNames = new Set(installedPlugins.map((p) => p.name));
       setInstalledPluginNames(installedNames);
       console.log(`[Marketplace] Found ${installedNames.size} installed plugins`);
     } catch (err) {
@@ -118,7 +114,7 @@ const MarketplaceView: React.FC = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((p) =>
         p.name.toLowerCase().includes(query) ||
-        p.pluginName.toLowerCase().includes(query) ||
+        p.displayName.toLowerCase().includes(query) ||
         p.description.toLowerCase().includes(query) ||
         p.keywords.some((kw) => kw.toLowerCase().includes(query)) ||
         p.author.toLowerCase().includes(query)
@@ -168,7 +164,7 @@ const MarketplaceView: React.FC = () => {
         payload: {
           type: 'success',
           title: '安装成功',
-          message: `${plugin.pluginName} 已成功安装`,
+          message: `${plugin.displayName} 已成功安装`,
         },
       });
 
@@ -189,7 +185,7 @@ const MarketplaceView: React.FC = () => {
         payload: {
           type: 'error',
           title: '安装失败',
-          message: `${plugin.pluginName} 安装失败: ${errorMessage}`,
+          message: `${plugin.displayName} 安装失败: ${errorMessage}`,
         },
       });
     } finally {
@@ -331,20 +327,18 @@ const PluginCard: React.FC<PluginCardProps> = ({ plugin, installing, installed, 
 
   return (
     <div className={`plugin-card ${installed ? 'installed' : ''}`}>
-      {/* Plugin Header */}
       <div className="plugin-header">
         <div className="plugin-icon">
           {plugin.logo ? (
-            <img src={plugin.logo} alt={plugin.pluginName} />
+            <img src={plugin.logo} alt={plugin.displayName} />
           ) : (
             <div className="plugin-icon-placeholder">
-              {plugin.pluginName.charAt(0).toUpperCase()}
+              {plugin.displayName.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div className="plugin-info">
-          <h3 className="plugin-name">{plugin.pluginName}</h3>
-          <p className="plugin-author">by {plugin.author}</p>
+          <h3 className="plugin-name">{plugin.displayName}</h3>
           <div className="plugin-category-badge">
             <span className="category-icon">{categoryInfo.categoryIcon}</span>
             <span className="category-name">{categoryInfo.categoryName}</span>
@@ -352,39 +346,15 @@ const PluginCard: React.FC<PluginCardProps> = ({ plugin, installing, installed, 
         </div>
       </div>
 
-      {/* Plugin Description */}
       <p className="plugin-description">{plugin.description}</p>
 
-      {/* Plugin Features */}
-      {plugin.features && plugin.features.length > 0 && (
-        <div className="plugin-features">
-          {plugin.features.slice(0, 3).map((feature, index) => (
-            <span key={index} className="feature-item">
-              ✓ {feature}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Plugin Tags */}
-      {plugin.tags && plugin.tags.length > 0 && (
-        <div className="plugin-tags">
-          {plugin.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="tag">
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Plugin Footer */}
       <div className="plugin-footer">
-        <div className="plugin-version">v{plugin.version}</div>
+        <span className="plugin-version">v{plugin.version}</span>
         {installed ? (
-          <div className="installed-badge">✓ 已安装</div>
+          <span className="installed-badge">✓ 已安装</span>
         ) : (
           <button
-            className="btn-primary install-btn"
+            className="install-btn"
             onClick={() => onInstall(plugin)}
             disabled={installing}
           >

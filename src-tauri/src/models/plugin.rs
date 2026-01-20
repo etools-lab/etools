@@ -66,13 +66,12 @@ pub struct Plugin {
     pub entry_point: String,
     pub triggers: Vec<PluginTrigger>,
     pub settings: HashMap<String, serde_json::Value>,
-
-    // === Installation fields ===
     pub health: PluginHealth,
     pub usage_stats: PluginUsageStats,
-    pub installed_at: i64,    // Unix timestamp (ms)
-    pub install_path: String, // File system path
-    pub source: PluginSource, // Installation source
+    pub installed_at: i64,
+    pub install_path: String,
+    pub source: PluginSource,
+    pub update_metadata: Option<PluginUpdateMetadata>,
 }
 
 /// Plugin installation source
@@ -160,6 +159,12 @@ pub struct PluginUpdateInfo {
     pub current_version: String,    // Currently installed version
     pub latest_version: String,     // Latest version from npm
     pub has_update: bool,           // Whether an update is available
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginUpdateMetadata {
+    pub latest_version: String,
+    pub has_update: bool,
 }
 
 // Custom deserialization to support both string and object formats

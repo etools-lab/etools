@@ -3,23 +3,23 @@
  * 插件市场数据
  *
  * 说明：从 npm @etools-plugin 组织动态加载插件
+ * 使用 ETP (etools Plugin Metadata Protocol) 严格验证
  */
 
 import type { MarketplacePlugin, PluginCategory } from '../types/plugin';
 import { marketplaceService } from './pluginManager';
+import { PluginMetadataParser } from '../utils/pluginMetadataParser';
 
 // ============================================================================
-// 类型转换
+// 类型转换（使用 ETP 协议）
 // ============================================================================
 
 /**
  * 转换后端 MarketplacePlugin 到前端 MarketplacePlugin
+ * 使用 ETP 协议，后端已经验证过元数据
  * Tauri 会自动将 snake_case 转换为 camelCase
  */
 function convertBackendToFrontend(backend: any): MarketplacePlugin {
-  // 构造 npm 包名
-  const packageName = `@etools-plugin/${backend.id}`;
-
   // 如果 backend.icon 存在且非 null，使用它
   // 否则根据分类生成默认 emoji 图标
   let logo = backend.icon;
@@ -36,19 +36,19 @@ function convertBackendToFrontend(backend: any): MarketplacePlugin {
   }
 
   return {
-    name: packageName,                        // npm 包名
-    pluginName: backend.name,                  // 显示名称
+    name: `@etools-plugin/${backend.id}`,      // npm 包名（后端已验证符合 @etools-plugin/* 格式）
+    displayName: backend.name,                  // 显示名称（后端已从 ETP 解析）
     description: backend.description,
     logo,
     author: backend.author,
     homepage: backend.homepage || undefined,
-    version: backend.latestVersion || backend.version,  // 使用 latestVersion（市场显示最新版本）
+    version: backend.latestVersion || backend.version,
     downloads: backend.downloadCount || backend.download_count || 0,
     features: (backend.tags || []).slice(0, 5),  // 从 tags 生成 features
     keywords: backend.tags || [],
     category: backend.category as PluginCategory,
     tags: backend.tags || [],
-    permissions: backend.permissions || [],
+    permissions: backend.permissions || [],      // 后端已从 ETP 解析
     platform: undefined,
     screenshots: backend.screenshots || undefined,
   };

@@ -96,7 +96,7 @@ const ConfirmDisableDialog: React.FC<ConfirmDisableDialogProps> = ({
             <div className="confirm-dialog-info">
               <h4>该插件当前拥有以下权限:</h4>
               <ul className="permission-list">
-                {plugin.manifest.permissions.map((permission) => (
+                {plugin.manifest.permissions.map((permission: string) => (
                   <li key={permission} className="permission-item">
                     {permission}
                   </li>

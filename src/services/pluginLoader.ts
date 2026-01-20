@@ -300,10 +300,9 @@ export class PluginLoader {
       const module = await import(/* @vite-ignore */ normalizedPath);
       const rawPlugin = extractPluginFromModule(module);
 
-      // Normalize plugin: ensure onSearch property exists (v2 only)
       const plugin: Plugin = {
         ...rawPlugin,
-        onSearch: rawPlugin.onSearch,
+        onSearch: rawPlugin.onSearch || (() => Promise.resolve([])),
         init: rawPlugin.init,
         onDestroy: rawPlugin.onDestroy,
       };
@@ -468,7 +467,7 @@ export class PluginLoader {
 
     for (const [pluginId, plugin] of this.loadedPlugins.entries()) {
       // Check trigger match
-      const matchesTrigger = plugin.manifest.triggers.some((trigger) =>
+      const matchesTrigger = plugin.manifest.triggers.some((trigger: string) =>
         lowerQuery.startsWith(trigger.toLowerCase())
       );
 

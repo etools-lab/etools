@@ -60,7 +60,7 @@ export function formatRelativeTime(
   const diffDays = Math.floor(diff / 86400000);
 
   // Yesterday (only if useDayLabels)
-  if (useDayLabels && diffDays === 1) {
+  if (useDayLabels && diffDays ===1) {
     return '昨天';
   }
 

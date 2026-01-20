@@ -8,7 +8,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { usePluginState, usePluginDispatch } from '../../services/pluginStateStore';
 import { pluginManagerService } from '../../services/pluginManager';
 import { marketplaceService } from '../../services/pluginManager';
-import type { Plugin, PluginManifest, PluginUpdateInfo } from '../../types/plugin';
+import type { Plugin, PluginUpdateInfo } from '../../types/plugin';
 import PluginList from './PluginList';
 import BulkActionsToolbar from './BulkActionsToolbar';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -140,11 +140,11 @@ const InstalledPluginsView: React.FC = () => {
       return;
     }
 
-    console.log('[InstalledPluginsView] Found plugin:', plugin.manifest.name);
+      console.log('[InstalledPluginsView] Found plugin:', plugin.manifest.name);
 
-    try {
-      console.log('[InstalledPluginsView] Calling uninstallPlugin...');
-      await pluginManagerService.uninstallPlugin(pluginId);
+      try {
+        console.log('[InstalledPluginsView] Calling uninstallPlugin...');
+        await pluginManagerService.uninstallPlugin(pluginId);
 
       // Unload plugin from PluginLoader to remove it from memory
       const { pluginLoader } = await import('../../services/pluginLoader');
@@ -336,17 +336,17 @@ const InstalledPluginsView: React.FC = () => {
    * Get filtered plugins - memoized to avoid unnecessary recalculation
    * Only recomputes when plugins, search query, or filters change
    */
-  const filteredPlugins = useMemo(() => {
-    return state.plugins.filter((plugin) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch =
-          plugin.manifest.name.toLowerCase().includes(query) ||
-          plugin.manifest.description.toLowerCase().includes(query) ||
-          plugin.manifest.id.toLowerCase().includes(query);
-        if (!matchesSearch) return false;
-      }
+    const filteredPlugins = useMemo(() => {
+      return state.plugins.filter((plugin) => {
+        // Search filter
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matchesSearch =
+            plugin.manifest.name.toLowerCase().includes(query) ||
+            plugin.manifest.description.toLowerCase().includes(query) ||
+            plugin.manifest.id.toLowerCase().includes(query);
+          if (!matchesSearch) return false;
+        }
 
       // Category filter - Note: Plugin doesn't have category field
       // Skip category filter for installed plugins (MarketplacePlugin has category)

@@ -8,6 +8,8 @@
  * All plugins use v2 API:
  * - PluginSearchResult with actionData (no action functions)
  * - onSearch returns PluginSearchResultV2[]
+ *
+ * Uses ETP (etools Plugin Metadata Protocol) for strict validation
  */
 
 // Import and re-export base types from plugin-sdk (v2)
@@ -23,11 +25,65 @@ export type {
 export type {
   PluginSearchResultV2,
   PluginActionData,
-  PluginV2
+  PluginV2,
+  ActionExecutor,
+  WorkerExecutionResult
 } from '@/lib/plugin-sdk/v2-types';
 
 // ============================================================================
-// Extended Plugin Types (with runtime state)
+// ETP - etools Plugin Metadata Protocol
+// ============================================================================
+
+/**
+ * etools 插件元数据协议（ETP）
+ * 所有插件必须在 package.json 中包含 etools 字段
+ */
+export interface EtoolsMetadata {
+  /** 插件唯一标识符（不含 @etools-plugin/ 前缀） */
+  id: string;
+
+  /** 显示名称（UI 使用，必须友好可读） */
+  displayName: string;
+
+  /** 详细描述（可选，优先使用此字段而非 package.json#description） */
+  description?: string;
+
+  /** 分类（必填） */
+  category: PluginCategory;
+
+  /** 图标路径（可选，相对于包根目录） */
+  icon?: string;
+
+  /** 项目主页 URL（可选） */
+  homepage?: string;
+
+  /** 截图 URL 列表（可选） */
+  screenshots?: string[];
+
+  /** 所需权限列表（必填） */
+  permissions: string[];
+
+  /** 触发关键词列表（必填） */
+  triggers: string[];
+
+  /** 配置项定义（可选） */
+  settings?: PluginSetting[];
+}
+
+/**
+ * ETP 元数据解析错误
+ */
+export class EtoolsMetadataError extends Error {
+  constructor(
+    public code: 'MISSING_ETOOLS_FIELD' | 'MISSING_REQUIRED_FIELD' | 'INVALID_CATEGORY' | 'INVALID_PACKAGE_NAME',
+    message: string,
+    public field?: string
+  ) {
+    super(message);
+    this.name = 'EtoolsMetadataError';
+  }
+}
+
 // ============================================================================
 // Extended Plugin Types (with runtime state)
 // ============================================================================
@@ -36,6 +92,18 @@ export type {
  * Plugin health status
  */
 export type PluginHealthStatus = 'healthy' | 'warning' | 'error' | 'unknown';
+
+/**
+ * Plugin setting definition
+ */
+export interface PluginSetting {
+  key: string;
+  label: string;
+  type: 'string' | 'number' | 'boolean' | 'select';
+  default: string | number | boolean;
+  options?: { label: string; value: string | number }[];
+  description?: string;
+}
 
 // ============================================================================
 // Installation Types
@@ -195,13 +263,13 @@ export type PluginCategory =
   | 'integration';
 
 /**
- * Marketplace plugin (静态 JSON 数据源)
- * ✅ 匹配 GitHub 仓库中的 JSON 格式
+ * Marketplace plugin（使用 ETP 协议）
+ * 从后端转换而来，用于前端展示
  */
 export interface MarketplacePlugin {
   // 基本信息
   name: string;                  // npm 包名，如 "@etools-plugin/hello"
-  pluginName: string;            // 显示名称，如 "Hello World"
+  displayName: string;           // 显示名称（ETP 协议的 etools.displayName）
   description: string;           // 简短描述
   logo: string;                  // 图标 URL
 
@@ -222,11 +290,11 @@ export interface MarketplacePlugin {
   readme?: string;               // README URL（可选）
 
   // 分类
-  category: PluginCategory;      // 插件分类
+  category: PluginCategory;      // 插件分类（ETP 协议的 etools.category）
   tags?: string[];               // 标签（可选）
 
   // 系统要求
-  permissions?: string[];        // 所需权限（可选）
+  permissions: string[];         // 所需权限（ETP 协议的 etools.permissions）
   platform?: string[];           // 支持平台（可选）
 
   // 安装信息

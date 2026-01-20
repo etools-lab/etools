@@ -18,10 +18,19 @@ import type { PluginManifest, PluginPermission, PluginSetting } from './types';
  */
 export interface PluginActionData {
   /** Action type determines how main thread should execute */
-  type: 'popup' | 'clipboard' | 'open-url' | 'custom' | 'none';
+  type: 'popup' | 'clipboard' | 'open-url' | 'custom' | 'none' | 'open-ui';
 
   /** Human-readable action description */
   description?: string;
+
+  /** For 'open-ui' type - plugin ID */
+  pluginId?: string;
+
+  /** For 'open-ui' type - tool ID within plugin */
+  toolId?: string;
+
+  /** For 'open-ui' type - query string to pass to UI */
+  query?: string;
 
   /** Data for different action types */
   data?: {
@@ -99,100 +108,6 @@ export interface PluginV2 {
 /**
  * Action executor - runs on main thread based on actionData
  * This is implemented by framework, not by plugins
- */
-export interface ActionExecutor {
-  execute(actionData: PluginActionData): Promise<void>;
-}
-
-/**
- * Worker execution result
- */
-export interface WorkerExecutionResult {
-  success: boolean;
-  results: PluginSearchResultV2[];
-  error?: string;
-  executionTime: number;
-}
-
-/**
- * Plugin search result (v2) - without action function
- * The action function is created on main thread based on actionData
- */
-export interface PluginSearchResultV2 {
-  /** Unique result ID */
-  id: string;
-
-  /** Display title */
-  title: string;
-
-  /** Description/subtitle */
-  description?: string;
-
-  /** Icon (emoji or URL) */
-  icon?: string;
-
-  /** Action data (serializable, no functions) */
-  actionData: PluginActionData;
-
-  /** Relevance score (0-1) */
-  score?: number;
-
-  /** Optional metadata */
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * Plugin manifest (unchanged)
- */
-export interface PluginManifest {
-  id: string;
-  name: string;
-  version: string;
-  description: string;
-  author: string;
-  permissions: PluginPermission[];
-  triggers: string[];
-  settings?: PluginSetting[];
-  icon?: string;
-  homepage?: string;
-}
-
-/**
- * Plugin permissions
- */
-export type PluginPermission =
-  | 'read:clipboard'
-  | 'write:clipboard'
-  | 'read:files'
-  | 'write:files'
-  | 'network:request'
-  | 'show:notification';
-
-/**
- * Plugin setting definition
- */
-export interface PluginSetting {
-  id: string;
-  label: string;
-  type: 'text' | 'number' | 'boolean' | 'select';
-  default?: string | number | boolean;
-  options?: Array<{ label: string; value: string | number | boolean }>;
-}
-
-/**
- * Plugin interface (v2)
- * onSearch returns PluginSearchResultV2[] (without action functions)
- */
-export interface PluginV2 {
-  manifest: PluginManifest;
-  onSearch(query: string): Promise<PluginSearchResultV2[]>;
-  init?(): Promise<void>;
-  onDestroy?(): Promise<void>;
-}
-
-/**
- * Action executor - runs on main thread based on actionData
- * This is implemented by the framework, not by plugins
  */
 export interface ActionExecutor {
   execute(actionData: PluginActionData): Promise<void>;

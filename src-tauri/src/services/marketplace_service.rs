@@ -1,13 +1,13 @@
 //! NPM-based Marketplace Service
 //! Business logic for plugin marketplace using npm registry
 //!
-//! This replaces the custom marketplace with npm-based plugin distribution.
+//! This replaces custom marketplace with npm-based plugin distribution.
+//! Uses ETP (etools Plugin Metadata Protocol) for strict validation.
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use crate::models::plugin::*;
-use std::fs;
+use crate::models::plugin_metadata::EtoolsMetadata;
 use std::process::Command;
-use std::time::SystemTime;
 use serde_json::Value;
 
 /// Error type for marketplace operations
@@ -103,458 +103,33 @@ impl MarketplaceService {
         })
     }
 
-    /// Install plugin from npm
-    pub fn install_plugin(&self, package_name: &str, handle: &AppHandle) -> MarketplaceResult<Plugin> {
-        println!("[Marketplace] Installing plugin: {}", package_name);
-
-        // 1. Get plugins directory
-        let plugins_base = handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| format!("Failed to get data dir: {}", e))?
-            .join("plugins");
-
-        println!("[Marketplace] Plugins base directory: {:?}", plugins_base);
-        fs::create_dir_all(&plugins_base)
-            .map_err(|e| format!("Failed to create plugins directory: {}", e))?;
-
-        // 2. Ensure package.json exists (npm 需要)
-        let package_json_path = plugins_base.join("package.json");
-        if !package_json_path.exists() {
-            println!("[Marketplace] Creating package.json in plugins directory");
-            let default_package_json = r#"{"name":"etools-plugins","dependencies":{}}"#;
-            fs::write(&package_json_path, default_package_json)
-                .map_err(|e| format!("Failed to create package.json: {}", e))?;
-        }
-
-        // 3. Execute npm install (在 plugins 目录执行)
-        println!("[Marketplace] Running: npm install {}", package_name);
-        let output = Command::new("npm")
-            .args(["install", package_name])
-            .current_dir(&plugins_base)  // 使用 current_dir 而不是 --prefix
-            .output()
-            .map_err(|e| format!("Failed to execute npm install: {}", e))?;
-
-        println!("[Marketplace] npm install stdout: {}", String::from_utf8_lossy(&output.stdout));
-        println!("[Marketplace] npm install stderr: {}", String::from_utf8_lossy(&output.stderr));
-        println!("[Marketplace] npm install status: {}", output.status);
-
-        if !output.status.success() {
-            let error = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("npm install failed: {}", error));
-        }
-
-        println!("[Marketplace] npm install successful");
-
-        // 3. List what was installed
-        println!("[Marketplace] Listing contents of {:?}", plugins_base);
-        if let Ok(entries) = fs::read_dir(&plugins_base) {
-            for entry in entries.flatten() {
-                println!("[Marketplace]   - {:?}", entry.file_name());
-            }
-        }
-
-        // 4. Read package.json from installed package
-        // npm install --prefix plugins 会创建 plugins/node_modules 目录
-        let node_modules_dir = plugins_base.join("node_modules");
-        let package_path = node_modules_dir.join(package_name).join("package.json");
-
-        println!("[Marketplace] Looking for package.json at: {:?}", package_path);
-        println!("[Marketplace] Package.json exists: {}", package_path.exists());
-
-        if !package_path.exists() {
-            return Err(format!("package.json not found at {:?}", package_path));
-        }
-
-        println!("[Marketplace] Using package.json at: {:?}", package_path);
-        let package_content = fs::read_to_string(&package_path)
-            .map_err(|e| format!("Failed to read package.json from {:?}: {}", package_path, e))?;
-
-        let package_json: Value = serde_json::from_str(&package_content)
-            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
-
-        // 4. Extract ETools metadata (optional for compatibility)
-        let etools_metadata = package_json.get("etools")
-            .and_then(|v| v.as_object());
-
-        // Generate plugin_id from package name if not in etools metadata
-        let plugin_id = if let Some(meta) = &etools_metadata {
-            meta.get("id")
-                .and_then(|v| v.as_str())
-                .ok_or("etools.id missing")?
-        } else {
-            // Generate ID from package name (e.g., "@etools-plugin/devtools" -> "devtools")
-            package_name.strip_prefix("@etools-plugin/")
-                .unwrap_or(package_name)
-        };
-
-        let title = if let Some(meta) = &etools_metadata {
-            meta.get("title")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| {
-                    package_json.get("name")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("Unknown")
-                        .to_string()
-                })
-        } else {
-            // Generate title from package name (e.g., "devtools" -> "Devtools")
-            package_name.strip_prefix("@etools-plugin/")
-                .unwrap_or(package_name)
-                .split('-')
-                .map(|s| {
-                    let mut chars = s.chars();
-                    match chars.next() {
-                        None => String::new(),
-                        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                    }
-                })
-                .collect::<Vec<String>>()
-                .join(" ")
-        };
-
-        let description = if let Some(meta) = &etools_metadata {
-            meta.get("description")
-                .and_then(|v| v.as_str())
-                .unwrap_or_else(|| {
-                    package_json.get("description")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("No description")
-                })
-        } else {
-            package_json.get("description")
-                .and_then(|v| v.as_str())
-                .unwrap_or("No description")
-        };
-
-        let version = package_json.get("version")
-            .and_then(|v| v.as_str())
-            .unwrap_or("0.0.0");
-
-        let author = package_json.get("author")
-            .and_then(|v| v.as_str())
-            .or_else(|| etools_metadata.as_ref().and_then(|m| m.get("author").and_then(|v| v.as_str())))
-            .map(String::from);
-
-        let permissions = if let Some(meta) = &etools_metadata {
-            meta.get("permissions")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect())
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-
-        let triggers: Vec<String> = if let Some(meta) = &etools_metadata {
-            meta.get("triggers")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect())
-                .unwrap_or_default()
-        } else {
-            // Generate default triggers from plugin ID
-            vec![format!("{}:", plugin_id)]
-        };
-
-        let _icon = etools_metadata.as_ref()
-            .and_then(|m| m.get("icon"))
-            .and_then(|v| v.as_str())
-            .map(String::from);
-
-        // TODO: Add homepage, repository, category to Plugin struct when needed
-        let _homepage = package_json.get("homepage")
-            .and_then(|v| v.as_str())
-            .or_else(|| etools_metadata.as_ref().and_then(|m| m.get("homepage").and_then(|v| v.as_str())))
-            .map(String::from);
-
-        let _repository = package_json.get("repository")
-            .and_then(|v| v.as_str())
-            .map(String::from);
-
-        let _category_str = etools_metadata.as_ref()
-            .and_then(|m| m.get("category"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("utilities");
-        let _category = Self::parse_category(_category_str);
-
-        // 5. Get entry point
-        let main = package_json.get("main")
-            .and_then(|v| v.as_str())
-            .unwrap_or("dist/index.js");
-
-        // 6. Get current timestamp
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|e| format!("Failed to get timestamp: {}", e))?
-            .as_millis() as i64;
-
-        // 7. Return Plugin object
-        Ok(Plugin {
-            id: plugin_id.to_string(),
-            name: title.to_string(),
-            version: version.to_string(),
-            description: description.to_string(),
-            author,
-            enabled: true,
-            permissions,
-            entry_point: main.to_string(),
-            triggers: triggers.iter().map(|t| PluginTrigger {
-                keyword: t.clone(),
-                description: "".to_string(),
-                hotkey: None,
-            }).collect(),
-            settings: Default::default(),
-            health: PluginHealth {
-                status: PluginHealthStatus::Healthy,
-                message: Some("Installed from npm".to_string()),
-                last_checked: now,
-                errors: vec![],
-            },
-            usage_stats: PluginUsageStats {
-                last_used: None,
-                usage_count: 0,
-                last_execution_time: None,
-                average_execution_time: None,
-            },
-            installed_at: now,
-            install_path: package_path.parent().unwrap().to_string_lossy().to_string(),
-            source: PluginSource::Marketplace,
-        })
-    }
-
-    /// Uninstall plugin using npm
-    pub fn uninstall_plugin(&self, package_name: &str, handle: &AppHandle) -> MarketplaceResult<()> {
-        println!("[Marketplace] Uninstalling plugin: {}", package_name);
-
-        let plugins_dir = handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| format!("Failed to get data dir: {}", e))?
-            .join("plugins");
-
-        // Execute npm uninstall
-        let output = Command::new("npm")
-            .args(["uninstall", package_name])
-            .current_dir(&plugins_dir)  // 使用 current_dir 而不是 --prefix
-            .output()
-            .map_err(|e| format!("Failed to execute npm uninstall: {}", e))?;
-
-        if !output.status.success() {
-            let error = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("npm uninstall failed: {}", error));
-        }
-
-        println!("[Marketplace] npm uninstall successful");
-        Ok(())
-    }
-
-    /// Update plugin using npm
-    pub fn update_plugin(&self, package_name: &str, handle: &AppHandle) -> MarketplaceResult<Plugin> {
-        println!("[Marketplace] Updating plugin: {}", package_name);
-
-        let plugins_dir = handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| format!("Failed to get data dir: {}", e))?
-            .join("plugins");
-
-        // Execute npm update
-        let output = Command::new("npm")
-            .args(["update", package_name])
-            .current_dir(&plugins_dir)  // 使用 current_dir 而不是 --prefix
-            .output()
-            .map_err(|e| format!("Failed to execute npm update: {}", e))?;
-
-        if !output.status.success() {
-            let error = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("npm update failed: {}", error));
-        }
-
-        println!("[Marketplace] npm update successful");
-
-        // Re-read the updated package
-        self.install_plugin(package_name, handle)
-    }
-
-    /// Check for plugin updates
-    /// Returns a list of plugins that have updates available
-    pub fn check_updates(&self, handle: &AppHandle) -> MarketplaceResult<Vec<PluginUpdateInfo>> {
-        println!("[Marketplace] Checking for plugin updates...");
-
-        // 1. Get installed plugins from package.json
-        let plugins_dir = handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| format!("Failed to get data dir: {}", e))?
-            .join("plugins");
-
-        let package_json_path = plugins_dir.join("package.json");
-
-        // If package.json doesn't exist, no plugins are installed
-        if !package_json_path.exists() {
-            println!("[Marketplace] No plugins installed (package.json not found)");
-            return Ok(vec![]);
-        }
-
-        // 2. Read package.json to get installed plugins
-        let package_json_content = fs::read_to_string(&package_json_path)
-            .map_err(|e| format!("Failed to read package.json: {}", e))?;
-
-        let package_data: Value = serde_json::from_str(&package_json_content)
-            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
-
-        let dependencies = package_data["dependencies"]
-            .as_object()
-            .ok_or("Invalid package.json: missing dependencies")?;
-
-        println!("[Marketplace] Checking updates for {} plugins", dependencies.len());
-
-        let mut update_info_list = Vec::new();
-
-        // 3. For each installed plugin, fetch latest version from npm
-        for (package_name, _version_spec) in dependencies.iter() {
-            println!("[Marketplace] Checking updates for: {}", package_name);
-
-            // Only check @etools-plugin packages
-            if !package_name.starts_with("@etools-plugin/") {
-                println!("[Marketplace] Skipping non-etools-plugin: {}", package_name);
-                continue;
-            }
-
-            // Fetch package metadata from npm registry
-            match self.get_latest_version_from_npm(package_name) {
-                Ok(latest_version) => {
-                    // Get currently installed version from node_modules
-                    let node_modules_dir = plugins_dir.join("node_modules").join(package_name);
-                    let current_version = if node_modules_dir.exists() {
-                        let package_path = node_modules_dir.join("package.json");
-                        if package_path.exists() {
-                            let content = fs::read_to_string(&package_path)
-                                .map_err(|e| format!("Failed to read package/package.json: {}", e))?;
-                            let pkg_json: Value = serde_json::from_str(&content)
-                                .map_err(|e| format!("Failed to parse package/package.json: {}", e))?;
-                            pkg_json["version"]
-                                .as_str()
-                                .unwrap_or("0.0.0")
-                                .to_string()
-                        } else {
-                            "0.0.0".to_string()
-                        }
-                    } else {
-                        println!("[Marketplace] Warning: package not installed in node_modules: {}", package_name);
-                        continue;
-                    };
-
-                    // Compare versions (simple string comparison - should use semver crate in production)
-                    let has_update = current_version != latest_version;
-
-                    if has_update {
-                        println!("[Marketplace] Update available: {} ({} -> {})", package_name, current_version, latest_version);
-                    } else {
-                        println!("[Marketplace] {} is up to date ({})", package_name, current_version);
-                    }
-
-                    update_info_list.push(PluginUpdateInfo {
-                        package_name: package_name.clone(),
-                        current_version,
-                        latest_version,
-                        has_update,
-                    });
-                }
-                Err(e) => {
-                    println!("[Marketplace] Failed to check updates for {}: {}", package_name, e);
-                    // Continue checking other plugins even if one fails
-                    continue;
-                }
-            }
-        }
-
-        // Filter to only include plugins with updates
-        let plugins_with_updates: Vec<PluginUpdateInfo> = update_info_list
-            .into_iter()
-            .filter(|info| info.has_update)
-            .collect();
-
-        println!("[Marketplace] Found {} plugins with updates", plugins_with_updates.len());
-
-        Ok(plugins_with_updates)
-    }
-
-    /// Get the latest version of a package from npm registry
-    fn get_latest_version_from_npm(&self, package_name: &str) -> MarketplaceResult<String> {
-        let url = format!("{}/{}", NPM_REGISTRY_API, package_name);
-
-        println!("[Marketplace] Fetching package info from: {}", url);
-
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
-            .build()
-            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
-        let response = client.get(&url)
-            .header("User-Agent", "ETools/1.0")
-            .send()
-            .map_err(|e| format!("Failed to fetch package info from npm: {}", e))?;
-
-        if !response.status().is_success() {
-            return Err(format!("npm API returned error for {}: {}", package_name, response.status()));
-        }
-
-        let text = response.text()
-            .map_err(|e| format!("Failed to read response: {}", e))?;
-
-        // Parse the npm registry response
-        // Format: { "versions": { "1.0.0": {...}, "1.1.0": {...} }, "dist-tags": { "latest": "1.1.0" } }
-        let package_data: Value = serde_json::from_str(&text)
-            .map_err(|e| format!("Failed to parse npm response: {}", e))?;
-
-        // Try to get the version from "dist-tags.latest" first
-        let latest_version = package_data["dist-tags"]["latest"]
-            .as_str()
-            .or_else(|| {
-                // Fallback: get the last key from "versions" object
-                package_data["versions"].as_object()
-                    .and_then(|versions| versions.keys().last().map(|s| s.as_str()))
-            })
-            .ok_or("Failed to extract version from npm response")?;
-
-        Ok(latest_version.to_string())
-    }
-
-    // ========================================================================
-    // Private helper methods
-    // ========================================================================
-
-    /// Execute npm search API call
+    /// Perform npm search
     fn npm_search(&self, url: &str) -> MarketplaceResult<NpmSearchResponse> {
+        println!("[Marketplace] Fetching from: {}", url);
+        
         let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
+            .user_agent("etools-marketplace/1.0.0")
             .build()
             .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
         let response = client.get(url)
-            .header("User-Agent", "ETools/1.0")
             .send()
             .map_err(|e| format!("Failed to fetch from npm: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("npm API returned error: {}", response.status()));
+            return Err(format!("NPM API returned status: {}", response.status()));
         }
 
-        let text = response.text()
-            .map_err(|e| format!("Failed to read response: {}", e))?;
-
-        let search_response: NpmSearchResponse = serde_json::from_str(&text)
+        let body = response.text().map_err(|e| format!("Failed to read response body: {}", e))?;
+        
+        let search_response: NpmSearchResponse = serde_json::from_str(&body)
             .map_err(|e| format!("Failed to parse npm response: {}", e))?;
 
         Ok(search_response)
     }
 
-    /// Convert npm search results to marketplace plugins
+    /// Convert npm packages to marketplace plugins
+    /// 使用 ETP 协议严格验证元数据
     fn convert_npm_to_marketplace(
         &self,
         objects: Vec<NpmSearchObject>,
@@ -565,54 +140,67 @@ impl MarketplaceService {
             .filter_map(|obj| {
                 let package = obj.package;
 
-                // Filter by category if specified
+                // 构造完整的 package.json 对象（用于 ETP 解析）
+                let mut package_json = serde_json::json!({
+                    "name": package.name,
+                    "version": package.version,
+                    "description": package.description,
+                    "keywords": package.keywords,
+                });
+
+                // 如果有 etools 元数据，添加到 package_json
+                if let Some(etools_meta) = &package.etools {
+                    package_json["etools"] = serde_json::to_value(etools_meta).unwrap();
+                }
+
+                // 使用 ETP 协议解析元数据（严格模式，不符合协议的包将被过滤）
+                let metadata = match EtoolsMetadata::from_package_json(&package_json) {
+                    Ok(meta) => meta,
+                    Err(e) => {
+                        println!(
+                            "[Marketplace] ⚠️  Skipping package '{}' - invalid ETP metadata: {}",
+                            package.name, e
+                        );
+                        return None;
+                    }
+                };
+
+                // 分类过滤
                 if let Some(cat) = category_filter {
                     if cat != "all" {
-                        // Try to get category from package keywords or etools metadata
-                        let package_cat = package.keywords.iter()
-                            .find(|k| {
-                                matches!(k.as_str(),
-                                    "productivity" | "developer" | "utilities" |
-                                    "search" | "media" | "integration"
-                                )
-                            });
-
-                        if package_cat.map(|k| k.as_str()) != Some(cat) {
+                        let category_str = format!("{:?}", metadata.category);
+                            if category_str.to_lowercase() != cat {
                             return None;
                         }
                     }
                 }
 
-                // Get etools metadata from package (if available in npm search)
-                // For full metadata, we'd need to fetch individual package info
-                let name = package.name.clone();
-                let id = name.strip_prefix("@etools-plugin/")
-                    .unwrap_or(&name)
-                    .replace('-', "");
-
-                let version = package.version.clone();
-                let description = package.description.clone();
+                println!(
+                    "[Marketplace] ✅ Loaded plugin: {} ({})",
+                    metadata.display_name, metadata.id
+                );
 
                 Some(MarketplacePlugin {
-                    id: id.clone(),
-                    name: Self::extract_title(&package),
-                    version: version.clone(),
-                    description,
+                    id: metadata.id.clone(),
+                    name: metadata.display_name.clone(),
+                    version: package.version.clone(),
+                    description: metadata.description
+                        .unwrap_or_else(|| package.description.clone()),
                     author: Self::extract_author(&package),
-                    permissions: vec![],
-                    triggers: vec![],
-                    icon: None,
-                    homepage: None,
+                    permissions: metadata.permissions,
+                    triggers: metadata.triggers,
+                    icon: metadata.icon,
+                    homepage: metadata.homepage,
                     repository: None,
                     download_count: 0, // npm search doesn't provide this
                     rating: 0.0,       // npm search doesn't provide this
                     rating_count: 0,
-                    category: Self::parse_category_from_keywords(&package.keywords),
+                    category: metadata.category,
                     installed: false,
                     installed_version: None,
                     update_available: false,
-                    latest_version: version,
-                    screenshots: None,
+                    latest_version: package.version,
+                    screenshots: metadata.screenshots,
                     tags: package.keywords,
                     published_at: 0,
                     updated_at: 0,
@@ -621,282 +209,158 @@ impl MarketplaceService {
             .collect()
     }
 
-    fn extract_title(package: &NpmPackage) -> String {
-        package.name
-            .strip_prefix("@etools-plugin/")
-            .unwrap_or(&package.name)
-            .split('-')
-            .map(|s| {
-                let mut chars = s.chars();
-                match chars.next() {
-                    None => String::new(),
-                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                }
-            })
-            .collect::<Vec<String>>()
-            .join(" ")
-    }
-
-    fn extract_author(_package: &NpmPackage) -> String {
-        // npm author can be an object or string
-        // For now, return a placeholder
-        // TODO: Parse author from package.author when needed
-        "Unknown".to_string()
-    }
-
-    fn parse_category(category_str: &str) -> PluginCategory {
-        match category_str.to_lowercase().as_str() {
-            "productivity" => PluginCategory::Productivity,
-            "developer" => PluginCategory::Developer,
-            "utilities" => PluginCategory::Utilities,
-            "search" => PluginCategory::Search,
-            "media" => PluginCategory::Media,
-            "integration" => PluginCategory::Integration,
-            _ => PluginCategory::Utilities,
-        }
-    }
-
-    fn parse_category_from_keywords(keywords: &[String]) -> PluginCategory {
-        for keyword in keywords {
-            let cat = Self::parse_category(keyword);
-            // Return first valid category that isn't Utilities (default)
-            if !matches!(cat, PluginCategory::Utilities) {
-                return cat;
+    /// Extract author from package
+    fn extract_author(package: &NpmPackage) -> String {
+        // npm author can be a string or an object
+        match &package.author {
+            serde_json::Value::String(name) => name.clone(),
+            serde_json::Value::Object(author_obj) => {
+                // Extract name from author object
+                author_obj
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+                    .unwrap_or_else(|| {
+                        // Fallback to string representation
+                        format!("{:?}", author_obj)
+                    })
             }
+            _ => "Unknown".to_string(),
         }
-        PluginCategory::Utilities
     }
 
     /// List installed npm plugins
-    /// Scans the node_modules directory for installed @etools-plugin packages
-    #[allow(dead_code)]
-    pub fn list_installed_plugins(&self, handle: &AppHandle) -> MarketplaceResult<Vec<Plugin>> {
-        println!("[Marketplace] list_installed_plugins called");
+    pub fn list_installed_plugins(
+        &self,
+        handle: &AppHandle,
+    ) -> MarketplaceResult<Vec<Plugin>> {
+        let plugins_dir = std::env::current_dir()
+            .map_err(|e| format!("Failed to get current dir: {}", e))?
+            .join("plugins");
 
-        let app_data_dir = handle
-            .path()
-            .app_data_dir()
-            .map_err(|e| {
-                println!("[Marketplace] Failed to get app data dir: {}", e);
-                format!("Failed to get data dir: {}", e)
-            })?;
+        let plugins_json_path = plugins_dir.join("package.json");
 
-        println!("[Marketplace] App data dir: {:?}", app_data_dir);
-
-        let plugins_dir = app_data_dir.join("plugins/node_modules/@etools-plugin");
-
-        println!("[Marketplace] Plugins dir: {:?}", plugins_dir);
-        println!("[Marketplace] Plugins dir exists: {}", plugins_dir.exists());
-
-        let mut plugins = Vec::new();
-
-        // Check if directory exists
-        if !plugins_dir.exists() {
-            println!("[Marketplace] No plugins directory found: {:?}", plugins_dir);
-            return Ok(plugins);
+        // If package.json doesn't exist, create an empty one
+        if !plugins_json_path.exists() {
+            let empty_package = r#"{
+  "name": "etools-plugins",
+  "version": "1.0.0",
+  "description": "Installed plugins registry",
+  "dependencies": {}
+}"#;
+            std::fs::write(&plugins_json_path, empty_package)
+                .map_err(|e| format!("Failed to create package.json: {}", e))?;
         }
 
-        // Read directory entries
-        let entries = fs::read_dir(&plugins_dir)
-            .map_err(|e| {
-                println!("[Marketplace] Failed to read plugins directory: {}", e);
-                format!("Failed to read plugins directory: {}", e)
-            })?;
+        // Read package.json (core optimization)
+        let package_json_content = std::fs::read_to_string(&plugins_json_path)
+            .map_err(|e| format!("Failed to read package.json: {}", e))?;
 
-        let entries_vec: Vec<_> = entries.collect();
-        println!("[Marketplace] Found {} directory entries", entries_vec.len());
+        // Parse JSON
+        let package_data: serde_json::Value = serde_json::from_str(&package_json_content)
+            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
 
-        for entry in entries_vec.into_iter().flatten() {
-            let path = entry.path();
-            println!("[Marketplace] Processing entry: {:?}", path);
+        // Get dependencies object
+        let dependencies = package_data["dependencies"]
+            .as_object()
+            .ok_or("Invalid package.json: missing dependencies")?;
 
-            // Skip non-directories
-            if !path.is_dir() {
-                println!("[Marketplace] Skipping (not a directory)");
-                continue;
-            }
+        // Read each plugin's plugin.json
+        let mut plugins = Vec::new();
 
-            // Read package.json
-            let package_json_path = path.join("package.json");
-            if !package_json_path.exists() {
-                println!("[Marketplace] No package.json found in {:?}", path);
-                continue;
-            }
+        println!("[Marketplace] Found {} dependencies in package.json", dependencies.len());
+        for (package_name, _version) in dependencies.iter() {
+            println!("[Marketplace] Processing dependency: {}", package_name);
+            // Plugin path: plugins/node_modules/{package_name}
+            // package_name might be "@etools-plugin/devtools" or "devtools"
+            let plugin_path = plugins_dir
+                .join("node_modules")
+                .join(package_name);
 
-            let package_json_content = fs::read_to_string(&package_json_path)
-                .map_err(|e| {
-                    println!("[Marketplace] Failed to read package.json: {}", e);
-                    format!("Failed to read package.json: {}", e)
-                })?;
+            let plugin_json_path = plugin_path.join("plugin.json");
+            let package_json_path = plugin_path.join("package.json");
 
-            println!("[Marketplace] Successfully read package.json");
-
-            let package_json: Value = serde_json::from_str(&package_json_content)
-                .map_err(|e| {
-                    println!("[Marketplace] Failed to parse package.json: {}", e);
-                    format!("Failed to parse package.json: {}", e)
-                })?;
-
-            println!("[Marketplace] Successfully parsed package.json");
-
-            // Extract etools metadata (optional for compatibility)
-            let etools_metadata = package_json
-                .get("etools")
-                .and_then(|v| v.as_object());
-
-            let package_name = package_json
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("Unknown");
-
-            // Generate plugin_id from package name if not in etools metadata
-            let plugin_id = if let Some(meta) = &etools_metadata {
-                meta.get("id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_else(|| {
-                        path.file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("unknown")
-                    })
-                    .to_string()
+            // Try to read plugin.json, if not exist then read package.json
+            let (plugin_json_content, is_package_json) = if plugin_json_path.exists() {
+                println!("[Marketplace] Reading plugin.json for {}", package_name);
+                (std::fs::read_to_string(&plugin_json_path)
+                    .map_err(|e| format!("Failed to read plugin.json for {}: {}", package_name, e))?, false)
+            } else if package_json_path.exists() {
+                println!("[Marketplace] plugin.json not found, reading package.json for {}", package_name);
+                (std::fs::read_to_string(&package_json_path)
+                    .map_err(|e| format!("Failed to read package.json for {}: {}", package_name, e))?, true)
             } else {
-                // Generate from package name (e.g., "@etools-plugin/devtools" -> "devtools")
-                package_name.strip_prefix("@etools-plugin/")
-                    .unwrap_or(package_name)
-                    .to_string()
+                println!("[Marketplace] Warning: neither plugin.json nor package.json found for {}", package_name);
+                continue;
             };
 
-            let name = if let Some(meta) = &etools_metadata {
-                meta.get("title")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_else(|| {
-                        package_json
-                            .get("name")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("Unknown")
-                    })
-                    .to_string()
-            } else {
-                // Generate title from package name
-                package_name.strip_prefix("@etools-plugin/")
-                    .unwrap_or(package_name)
-                    .split('-')
-                    .map(|s| {
-                        let mut chars = s.chars();
-                        match chars.next() {
-                            None => String::new(),
-                            Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            let mut plugin_data: serde_json::Value = serde_json::from_str(&plugin_json_content)
+                .map_err(|e| format!("Failed to parse plugin JSON for {}: {}", package_name, e))?;
+
+            // If reading package.json, try to get etools metadata
+            if is_package_json {
+                // Clone etools metadata to avoid borrowing conflict
+                let etools_meta_clone: Option<std::collections::HashMap<String, serde_json::Value>> =
+                    plugin_data.get("etools")
+                        .and_then(|v| v.as_object())
+                        .map(|obj| {
+                            obj.iter()
+                                .map(|(k, v)| (k.clone(), v.clone()))
+                                .collect()
+                        });
+
+                if let Some(etools_meta) = etools_meta_clone {
+                    println!("[Marketplace] Using etools metadata from package.json for {}", package_name);
+                    // Merge etools metadata to top-level as fallback values
+                    // Plugin manifest (from source code) is the source of truth
+                    // These values are only used if manifest cannot be loaded
+                    for (key, value) in etools_meta.iter() {
+                        if plugin_data.get(key).is_none() {
+                            plugin_data[key] = value.clone();
                         }
-                    })
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            };
+                    }
+                }
+            }
 
-            let description = if let Some(meta) = &etools_metadata {
-                meta.get("description")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or_else(|| {
-                        package_json
-                            .get("description")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                    })
-                    .to_string()
-            } else {
-                package_json
-                    .get("description")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string()
-            };
+            // Construct Plugin object from plugin.json
+            // Read plugin enabled state
+            let plugin_id = plugin_data["name"].as_str().unwrap_or(package_name);
 
-            let version = package_json
-                .get("version")
-                .and_then(|v| v.as_str())
-                .unwrap_or("0.0.0")
-                .to_string();
+            let enabled = crate::cmds::plugins::get_plugin_enabled_state(handle, &plugin_id.to_string())
+                .unwrap_or(true); // Default to enabled
 
-            let author = if let Some(meta) = &etools_metadata {
-                meta.get("author")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Unknown")
-                    .to_string()
-            } else {
-                package_json
-                    .get("author")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Unknown")
-                    .to_string()
-            };
+            let entry_point = plugin_data["main"].as_str().unwrap_or("index.js");
 
-            // Extract triggers
-            let triggers: Vec<String> = if let Some(meta) = &etools_metadata {
-                meta.get("triggers")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str())
-                            .map(String::from)
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            } else {
-                // Generate default triggers from plugin ID
-                vec![format!("{}:", plugin_id)]
-            };
-
-            // Extract permissions as strings
-            let permissions: Vec<String> = if let Some(meta) = &etools_metadata {
-                meta.get("permissions")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str())
-                            .map(String::from)
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            };
-
-            // Convert triggers to PluginTrigger structs
-            let plugin_triggers: Vec<PluginTrigger> = triggers
-                .iter()
-                .map(|keyword| PluginTrigger {
-                    keyword: keyword.clone(),
-                    description: format!("Trigger: {}", keyword),
-                    hotkey: None,
-                })
-                .collect();
-
-            // Get installation time
-            let installed_at = path
-                .metadata()
-                .and_then(|m| m.modified())
-                .ok()
-                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                .map(|d| d.as_millis() as i64)
-                .unwrap_or(0);
-
-            plugins.push(Plugin {
-                id: plugin_id.clone(),
-                name,
-                version,
-                description,
-                author: Some(author), // Wrap in Option
-                enabled: true, // npm plugins are enabled by default
-                permissions,
-                entry_point: format!("@etools-plugin/{}", path.file_name().unwrap().to_string_lossy()),
-                triggers: plugin_triggers,
-                settings: Default::default(),
+            let plugin = Plugin {
+                id: plugin_id.to_string(),
+                name: plugin_data["name"].as_str().unwrap_or(package_name).to_string(),
+                version: plugin_data["version"].as_str().unwrap_or("0.0.0").to_string(),
+                description: plugin_data["description"].as_str().unwrap_or("").to_string(),
+                author: plugin_data["author"].as_str().map(|s| s.to_string()),
+                enabled, // Read from plugin-state.json
+                permissions: plugin_data["permissions"]
+                    .as_array()
+                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default(),
+                entry_point: entry_point.to_string(),
+                triggers: plugin_data["triggers"]
+                    .as_array()
+                    .map(|arr| arr.iter().map(|v| PluginTrigger {
+                        keyword: v.as_str().unwrap_or("").to_string(),
+                        description: "".to_string(),
+                        hotkey: None,
+                    }).collect())
+                    .unwrap_or_default(),
+                settings: plugin_data["settings"]
+                    .as_object()
+                    .map(|obj| obj.iter().map(|(k, v)| {
+                        (k.clone(), v.clone())
+                    }).collect())
+                    .unwrap_or_default(),
                 health: PluginHealth {
                     status: PluginHealthStatus::Healthy,
-                    message: Some("Installed from npm".to_string()),
-                    last_checked: SystemTime::now()
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .map(|d| d.as_millis() as i64)
-                        .unwrap_or(0),
+                    message: None,
+                    last_checked: 0,
                     errors: Vec::new(),
                 },
                 usage_stats: PluginUsageStats {
@@ -905,35 +369,389 @@ impl MarketplaceService {
                     last_execution_time: None,
                     average_execution_time: None,
                 },
-                installed_at: installed_at,
-                install_path: path.to_string_lossy().to_string(),
+                installed_at: std::fs::metadata(&plugin_path)
+                    .and_then(|m| m.created())
+                    .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)
+                    .unwrap_or(0),
+                install_path: plugin_path.join(&entry_point).to_string_lossy().to_string(),
                 source: PluginSource::Marketplace,
-            });
+                update_metadata: None,
+            };
+
+            plugins.push(plugin);
         }
 
         println!("[Marketplace] Found {} installed npm plugins", plugins.len());
         Ok(plugins)
     }
+
+    /// Install a plugin from marketplace
+    pub fn install_plugin(
+        &self,
+        package_name: &str,
+        handle: &AppHandle,
+    ) -> MarketplaceResult<Plugin> {
+        println!("[Marketplace] Installing plugin: {}", package_name);
+
+        // 1. Get plugins directory
+        let plugins_dir = handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to get data dir: {}", e))?
+            .join("plugins");
+
+        // 2. Ensure plugins directory exists
+        std::fs::create_dir_all(&plugins_dir)
+            .map_err(|e| format!("Failed to create plugins dir: {}", e))?;
+
+        let package_json_path = plugins_dir.join("package.json");
+
+        // 3. Check if package.json exists
+        if !package_json_path.exists() {
+            let empty_package = r#"{
+  "name": "etools-plugins",
+  "version": "1.0.0",
+  "description": "Installed plugins registry",
+  "dependencies": {}
+}"#;
+            std::fs::write(&package_json_path, empty_package)
+                .map_err(|e| format!("Failed to create package.json: {}", e))?;
+        }
+
+        // 4. Read current package.json
+        let package_json_content = std::fs::read_to_string(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json: {}", e))?;
+
+        let mut package_data: serde_json::Value = serde_json::from_str(&package_json_content)
+            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+        // 5. Get or create dependencies object
+        let dependencies = if package_data.get_mut("dependencies").is_none() {
+            package_data["dependencies"] = serde_json::json!({});
+            package_data.get_mut("dependencies").unwrap()
+        } else {
+            package_data.get_mut("dependencies").unwrap()
+        };
+
+        // 6. Check if plugin already exists
+        if dependencies.get(package_name).is_some() {
+            return Err(format!("Plugin {} already installed", package_name));
+        }
+
+        // 7. Add plugin as dependency
+        dependencies[package_name] = serde_json::json!(package_name.to_string());
+
+        // 8. Write updated package.json
+        let updated_json = serde_json::to_string_pretty(&package_data)
+            .map_err(|e| format!("Failed to serialize package.json: {}", e))?;
+
+        std::fs::write(&package_json_path, updated_json)
+            .map_err(|e| format!("Failed to write package.json: {}", e))?;
+
+        // 9. Run npm install (in plugins directory)
+        let node_modules_dir = plugins_dir.join("node_modules");
+        let output = Command::new("npm")
+            .current_dir(&node_modules_dir)
+            .args(["install", package_name])
+            .output()
+            .map_err(|e| format!("Failed to execute npm install: {}", e))?;
+
+        if !output.status.success() {
+            return Err(format!("npm install failed: {}", String::from_utf8_lossy(&output.stderr)));
+        }
+
+        println!("[Marketplace] npm install output: {}", String::from_utf8_lossy(&output.stdout));
+
+        // 10. Read plugin package.json
+        let plugin_path = node_modules_dir.join(package_name);
+        let plugin_package_json_path = plugin_path.join("package.json");
+        let plugin_package_json_content = std::fs::read_to_string(&plugin_package_json_path)
+            .map_err(|e| format!("Failed to read plugin package.json: {}", e))?;
+
+        let plugin_data: serde_json::Value = serde_json::from_str(&plugin_package_json_content)
+            .map_err(|e| format!("Failed to parse plugin package.json: {}", e))?;
+
+        // 11. Get plugin enabled state
+        let enabled = crate::cmds::plugins::get_plugin_enabled_state(handle, package_name)
+            .unwrap_or(true);
+
+        let entry_point = plugin_data["main"].as_str().unwrap_or("index.js");
+
+        // 12. Construct Plugin object
+        let plugin = Plugin {
+            id: package_name.to_string(),
+            name: plugin_data["name"].as_str().unwrap_or(package_name).to_string(),
+            version: plugin_data["version"].as_str().unwrap_or("0.0.0").to_string(),
+            description: plugin_data["description"].as_str().unwrap_or("").to_string(),
+            author: plugin_data["author"].as_str().map(|s| s.to_string()),
+            enabled,
+            permissions: plugin_data["permissions"]
+                .as_array()
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+            entry_point: entry_point.to_string(),
+            triggers: plugin_data["triggers"]
+                .as_array()
+                .map(|arr| arr.iter().map(|v| PluginTrigger {
+                    keyword: v.as_str().unwrap_or("").to_string(),
+                    description: "".to_string(),
+                    hotkey: None,
+                }).collect())
+                .unwrap_or_default(),
+            settings: plugin_data["settings"]
+                .as_object()
+                .map(|obj| obj.iter().map(|(k, v)| {
+                    (k.clone(), v.clone())
+                }).collect())
+                .unwrap_or_default(),
+            health: PluginHealth {
+                status: PluginHealthStatus::Healthy,
+                message: None,
+                last_checked: 0,
+                errors: Vec::new(),
+            },
+            usage_stats: PluginUsageStats {
+                last_used: None,
+                usage_count: 0,
+                last_execution_time: None,
+                average_execution_time: None,
+            },
+            installed_at: std::fs::metadata(&plugin_path)
+                .and_then(|m| m.created())
+                .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)
+                .unwrap_or(0),
+            install_path: plugin_path.join(&entry_point).to_string_lossy().to_string(),
+            source: PluginSource::Marketplace,
+            update_metadata: None,
+        };
+
+        // 13. Reload plugins
+        let _ = handle.emit("plugin-reload-request", ());
+
+        Ok(plugin)
+    }
+
+    /// Update an existing plugin
+    pub fn update_plugin(&self, package_name: &str, handle: &AppHandle) -> MarketplaceResult<Plugin> {
+        println!("[Marketplace] Updating plugin: {}", package_name);
+
+        // 1. Get plugins directory
+        let plugins_dir = handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to get data dir: {}", e))?
+            .join("plugins");
+
+        // 2. Run npm install (in plugins directory) to update the package
+        let node_modules_dir = plugins_dir.join("node_modules");
+        let output = Command::new("npm")
+            .current_dir(&node_modules_dir)
+            .args(["install", package_name, "--upgrade"])
+            .output()
+            .map_err(|e| format!("Failed to execute npm install: {}", e))?;
+
+        if !output.status.success() {
+            return Err(format!("npm install failed: {}", String::from_utf8_lossy(&output.stderr)));
+        }
+
+        println!("[Marketplace] npm install output: {}", String::from_utf8_lossy(&output.stdout));
+
+        // 3. Read plugin package.json
+        let plugin_path = node_modules_dir.join(package_name);
+        let package_json_path = plugin_path.join("package.json");
+        let package_json_content = std::fs::read_to_string(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json: {}", e))?;
+
+        let plugin_data: serde_json::Value = serde_json::from_str(&package_json_content)
+            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+        // 4. Get plugin enabled state
+        let enabled = crate::cmds::plugins::get_plugin_enabled_state(handle, package_name)
+            .unwrap_or(true);
+
+        let entry_point = plugin_data["main"].as_str().unwrap_or("index.js");
+
+        // 5. Construct Plugin object
+        let plugin = Plugin {
+            id: package_name.to_string(),
+            name: plugin_data["name"].as_str().unwrap_or(package_name).to_string(),
+            version: plugin_data["version"].as_str().unwrap_or("0.0.0").to_string(),
+            description: plugin_data["description"].as_str().unwrap_or("").to_string(),
+            author: plugin_data["author"].as_str().map(|s| s.to_string()),
+            enabled,
+            permissions: plugin_data["permissions"]
+                .as_array()
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+            entry_point: entry_point.to_string(),
+            triggers: plugin_data["triggers"]
+                .as_array()
+                .map(|arr| arr.iter().map(|v| PluginTrigger {
+                    keyword: v.as_str().unwrap_or("").to_string(),
+                    description: "".to_string(),
+                    hotkey: None,
+                }).collect())
+                .unwrap_or_default(),
+            settings: plugin_data["settings"]
+                .as_object()
+                .map(|obj| obj.iter().map(|(k, v)| {
+                    (k.clone(), v.clone())
+                }).collect())
+                .unwrap_or_default(),
+            health: PluginHealth {
+                status: PluginHealthStatus::Healthy,
+                message: None,
+                last_checked: 0,
+                errors: Vec::new(),
+            },
+            usage_stats: PluginUsageStats {
+                last_used: None,
+                usage_count: 0,
+                last_execution_time: None,
+                average_execution_time: None,
+            },
+            installed_at: std::fs::metadata(&plugin_path)
+                .and_then(|m| m.created())
+                .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)
+                .unwrap_or(0),
+            install_path: plugin_path.join(&entry_point).to_string_lossy().to_string(),
+            source: PluginSource::Marketplace,
+            update_metadata: None,
+        };
+
+            // 6. Reload plugins
+        let _ = handle.emit("plugin-reload-request", ());
+
+        Ok(plugin)
+    }
+
+    /// Check for plugin updates
+    pub fn check_updates(&self, _handle: &AppHandle) -> MarketplaceResult<Vec<PluginUpdateInfo>> {
+        let plugins_dir = std::env::current_dir()
+            .map_err(|e| format!("Failed to get current dir: {}", e))?
+            .join("plugins");
+
+        let package_json_path = plugins_dir.join("package.json");
+
+        if !package_json_path.exists() {
+            return Ok(vec![]);
+        }
+
+        // Read package.json
+        let package_json_content = std::fs::read_to_string(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json: {}", e))?;
+
+        let package_data: serde_json::Value = serde_json::from_str(&package_json_content)
+            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+        let dependencies = package_data["dependencies"]
+            .as_object()
+            .ok_or("Invalid package.json: missing dependencies")?;
+
+        let mut updates = Vec::new();
+
+        // Check each plugin
+        for (package_name, version_value) in dependencies.iter() {
+            let current_version = version_value.as_str().unwrap_or("0.0.0");
+
+            // Query npm for latest version
+            let npm_registry_url = format!(
+                "https://registry.npmjs.org/{}",
+                package_name
+            );
+
+            // Use curl to fetch package info
+            let output = Command::new("curl")
+                .args(["-s", &npm_registry_url])
+                .output()
+                .map_err(|e| format!("Failed to fetch package info: {}", e))?;
+
+            let latest_version = if output.status.success() {
+                let json = serde_json::from_str::<Value>(&String::from_utf8_lossy(&output.stdout))
+                    .unwrap_or_else(|_| serde_json::json!({}));
+
+                json.get("version")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0.0.0")
+                    .to_string()
+            } else {
+                // If curl fails, assume no update
+                current_version.to_string()
+            };
+
+            // Compare versions
+            if latest_version != current_version {
+                updates.push(PluginUpdateInfo {
+                    package_name: package_name.to_string(),
+                    current_version: current_version.to_string(),
+                    latest_version,
+                    has_update: true,
+                });
+            }
+        }
+
+        println!("[Marketplace] Found {} plugins with updates", updates.len());
+        Ok(updates)
+    }
+
+    /// Uninstall a plugin
+    pub fn uninstall_plugin(&self, package_name: &str, handle: &AppHandle) -> MarketplaceResult<()> {
+        println!("[Marketplace] Uninstalling plugin: {}", package_name);
+
+        // 1. Get plugins directory
+        let plugins_dir = handle
+            .path()
+            .app_data_dir()
+            .map_err(|e| format!("Failed to get data dir: {}", e))?
+            .join("plugins");
+
+        // 2. Read package.json
+        let package_json_path = plugins_dir.join("package.json");
+        let package_json_content = std::fs::read_to_string(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json: {}", e))?;
+
+        // 3. Parse JSON
+        let mut package_data: serde_json::Value = serde_json::from_str(&package_json_content)
+            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+        // 4. Get or create dependencies object
+        if package_data["dependencies"].is_null() {
+            package_data["dependencies"] = serde_json::json!({});
+        }
+
+        if let Some(dependencies) = package_data["dependencies"].as_object_mut() {
+            dependencies.remove(package_name);
+        }
+
+        // 6. Write updated package.json
+        let updated_json = serde_json::to_string_pretty(&package_data)
+            .map_err(|e| format!("Failed to serialize package.json: {}", e))?;
+
+        std::fs::write(&package_json_path, updated_json)
+            .map_err(|e| format!("Failed to write package.json: {}", e))?;
+
+        // 7. Remove plugin files
+        let plugin_path = plugins_dir.join("node_modules").join(package_name);
+        if plugin_path.exists() {
+            std::fs::remove_dir_all(&plugin_path)
+                .map_err(|e| format!("Failed to remove plugin directory: {}", e))?;
+        }
+
+        // 8. Update plugin state
+        let _ = crate::cmds::plugins::remove_plugin_state(handle, package_name);
+
+        // 9. Reload plugins
+        let _ = handle.emit("plugin-reload-request", ());
+
+        Ok(())
+    }
 }
 
 // ============================================================================
-// NPM API Types
+// Types for NPM API
 // ============================================================================
 
-#[derive(Debug, serde::Deserialize)]
-struct NpmSearchResponse {
-    objects: Vec<NpmSearchObject>,
-    total: usize,
-    time: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct NpmSearchObject {
-    package: NpmPackage,
-    score: NpmScore,
-    searchScore: f64,
-}
-
+/// NPM package info from search results
 #[derive(Debug, serde::Deserialize)]
 struct NpmPackage {
     name: String,
@@ -943,6 +761,20 @@ struct NpmPackage {
     // author can be various types
     #[serde(default)]
     author: serde_json::Value,
+    // etools metadata (optional, for custom display name, category, etc.)
+    #[serde(default)]
+    etools: Option<std::collections::HashMap<String, serde_json::Value>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct NpmSearchObject {
+    package: NpmPackage,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct NpmSearchResponse {
+    objects: Vec<NpmSearchObject>,
+    total: u128,
 }
 
 #[derive(Debug, serde::Deserialize)]

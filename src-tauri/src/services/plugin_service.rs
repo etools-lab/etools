@@ -228,6 +228,7 @@ impl PluginService {
             installed_at: 0,
             install_path: path.to_string_lossy().to_string(),
             source: crate::models::plugin::PluginSource::Local,
+            update_metadata: None,
         })
     }
 

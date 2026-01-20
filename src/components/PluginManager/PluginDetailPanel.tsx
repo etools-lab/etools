@@ -306,7 +306,7 @@ const PluginDetailPanel: React.FC<PluginDetailPanelProps> = ({ pluginId, onClose
         <div className="detail-section">
           <h3>触发器</h3>
           <div className="triggers-list">
-            {plugin.manifest.triggers.map((trigger) => (
+            {plugin.manifest.triggers.map((trigger: string) => (
               <code key={trigger} className="trigger-item">
                 {trigger}
               </code>

@@ -1,8 +1,11 @@
 //! NPM-based Marketplace Commands
 //! Tauri commands for npm-based plugin marketplace operations
+//!
+//! Uses ETP (etools Plugin Metadata Protocol) for strict validation
 
 use crate::services::marketplace_service::MarketplaceService;
 use crate::models::plugin::*;
+use crate::models::plugin_metadata::EtoolsMetadata;
 use tauri::{AppHandle, Manager};
 use std::sync::Mutex;
 
@@ -235,7 +238,7 @@ pub fn marketplace_get_plugin(
 }
 
 /// Get installed npm plugins from package.json
-/// 读取 package.json，性能极佳（< 1ms）
+/// 使用 ETP 协议严格验证元数据
 #[tauri::command]
 pub fn get_installed_plugins(handle: AppHandle) -> Result<Vec<Plugin>, String> {
     let start_total = std::time::Instant::now();
@@ -283,95 +286,99 @@ pub fn get_installed_plugins(handle: AppHandle) -> Result<Vec<Plugin>, String> {
         .as_object()
         .ok_or("Invalid package.json: missing dependencies")?;
 
-    // 7. 读取每个插件的 plugin.json
+    // 7. 读取每个插件的 package.json 并使用 ETP 协议验证
     let start_load = std::time::Instant::now();
     let mut plugins = Vec::new();
 
     println!("[Marketplace] Found {} dependencies in package.json", dependencies.len());
     for (package_name, _version) in dependencies.iter() {
         println!("[Marketplace] Processing dependency: {}", package_name);
+
         // 插件路径：plugins/node_modules/{package_name}
-        // package_name 可能是 "@etools-plugin/devtools" 或 "devtools"
         let plugin_path = plugins_dir
             .join("node_modules")
             .join(package_name);
 
-        let plugin_json_path = plugin_path.join("plugin.json");
         let package_json_path = plugin_path.join("package.json");
 
-        // 尝试读取 plugin.json，如果不存在则读取 package.json
-        let (plugin_json_content, is_package_json) = if plugin_json_path.exists() {
-            println!("[Marketplace] Reading plugin.json for {}", package_name);
-            (std::fs::read_to_string(&plugin_json_path)
-                .map_err(|e| format!("Failed to read plugin.json for {}: {}", package_name, e))?, false)
-        } else if package_json_path.exists() {
-            println!("[Marketplace] plugin.json not found, reading package.json for {}", package_name);
-            (std::fs::read_to_string(&package_json_path)
-                .map_err(|e| format!("Failed to read package.json for {}: {}", package_name, e))?, true)
-        } else {
-            println!("[Marketplace] Warning: neither plugin.json nor package.json found for {}", package_name);
+        // 必须存在 package.json
+        if !package_json_path.exists() {
+            println!(
+                "[Marketplace] ⚠️  Skipping '{}': package.json not found (ETP violation)",
+                package_name
+            );
             continue;
-        };
-
-        let mut plugin_data: serde_json::Value = serde_json::from_str(&plugin_json_content)
-            .map_err(|e| format!("Failed to parse plugin JSON for {}: {}", package_name, e))?;
-
-        // 如果读取的是 package.json，尝试从 etools 字段获取插件元数据
-        if is_package_json {
-            // 先克隆 etools 元数据，避免借用冲突
-            let etools_meta_clone: Option<std::collections::HashMap<String, serde_json::Value>> =
-                plugin_data.get("etools")
-                    .and_then(|v| v.as_object())
-                    .map(|obj| {
-                        obj.iter()
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect()
-                    });
-
-            if let Some(etools_meta) = etools_meta_clone {
-                println!("[Marketplace] Using etools metadata from package.json for {}", package_name);
-                // 合并 etools 元数据到顶层
-                for (key, value) in etools_meta.iter() {
-                    if plugin_data.get(key).is_none() {
-                        plugin_data[key] = value.clone();
-                    }
-                }
-            }
         }
 
-        // 从 plugin.json 构造 Plugin 对象
-        // 读取插件启用状态
-        let plugin_id = plugin_data["name"].as_str().unwrap_or(package_name);
-        let enabled = crate::cmds::plugins::get_plugin_enabled_state(&handle, &plugin_id.to_string())
+        println!("[Marketplace] Reading package.json for {}", package_name);
+        let plugin_package_json_content = std::fs::read_to_string(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json for {}: {}", package_name, e))?;
+
+        let plugin_data: serde_json::Value = serde_json::from_str(&plugin_package_json_content)
+            .map_err(|e| format!("Failed to parse package.json for {}: {}", package_name, e))?;
+
+        // 使用 ETP 协议严格验证元数据
+        let metadata = match EtoolsMetadata::from_package_json(&plugin_data) {
+            Ok(meta) => meta,
+            Err(e) => {
+                println!(
+                    "[Marketplace] ⚠️  Skipping '{}': invalid ETP metadata - {}",
+                    package_name, e
+                );
+                continue;
+            }
+        };
+
+        println!(
+            "[Marketplace] ✅ Loaded plugin: {} ({})",
+            metadata.display_name, metadata.id
+        );
+
+        // 从 plugin-state.json 读取启用状态
+        let enabled = crate::cmds::plugins::get_plugin_enabled_state(&handle, &metadata.id)
             .unwrap_or(true); // 默认启用
 
-        let entry_point = plugin_data["main"].as_str().unwrap_or("index.js");
+        let entry_point = plugin_data["main"]
+            .as_str()
+            .unwrap_or("index.js")
+            .to_string();
 
+        // 构造 Plugin 对象（使用 ETP 元数据）
         let plugin = Plugin {
-            id: plugin_id.to_string(),
-            name: plugin_data["name"].as_str().unwrap_or(package_name).to_string(),
-            version: plugin_data["version"].as_str().unwrap_or("0.0.0").to_string(),
-            description: plugin_data["description"].as_str().unwrap_or("").to_string(),
-            author: plugin_data["author"].as_str().map(|s| s.to_string()),
-            enabled, // 从 plugin-state.json 读取
-            permissions: plugin_data["permissions"]
-                .as_array()
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-                .unwrap_or_default(),
-            entry_point: entry_point.to_string(),
-            triggers: plugin_data["triggers"]
-                .as_array()
-                .map(|arr| arr.iter().map(|v| PluginTrigger {
-                    keyword: v.as_str().unwrap_or("").to_string(),
-                    description: "".to_string(),
+            id: metadata.id.clone(),
+            name: metadata.display_name.clone(),  // ← 使用 displayName
+            version: plugin_data["version"]
+                .as_str()
+                .unwrap_or("0.0.0")
+                .to_string(),
+            description: metadata.description
+                .unwrap_or_else(|| {
+                    plugin_data["description"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string()
+                }),
+            author: plugin_data["author"]
+                .as_str()
+                .map(|s| s.to_string()),
+            enabled,
+            permissions: metadata.permissions,
+            entry_point: entry_point.clone(),
+            triggers: metadata.triggers
+                .iter()
+                .map(|keyword| PluginTrigger {
+                    keyword: keyword.clone(),
+                    description: String::new(),
                     hotkey: None,
-                }).collect())
-                .unwrap_or_default(),
+                })
+                .collect(),
             settings: plugin_data["settings"]
                 .as_object()
-                .map(|obj| obj.iter().map(|(k, v)| {
-                    (k.clone(), v.clone())
-                }).collect())
+                .map(|obj| {
+                    obj.iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect()
+                })
                 .unwrap_or_default(),
             health: PluginHealth {
                 status: PluginHealthStatus::Healthy,
@@ -389,17 +396,16 @@ pub fn get_installed_plugins(handle: AppHandle) -> Result<Vec<Plugin>, String> {
                 .and_then(|m| m.created())
                 .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)
                 .unwrap_or(0),
-            // 拼接完整的入口文件路径（目录 + entry_point）
             install_path: plugin_path.join(&entry_point).to_string_lossy().to_string(),
             source: PluginSource::Marketplace,
+            update_metadata: None,
         };
 
-        println!("[Marketplace] Added plugin: {} (source: {:?}, enabled: {})", plugin.id, plugin.source, plugin.enabled);
         plugins.push(plugin);
     }
 
     println!("[Marketplace] Load {} plugin details: {:?}", plugins.len(), start_load.elapsed());
-    println!("[Marketplace] ✅ Total time: {:?} (< 1ms expected)", start_total.elapsed());
+    println!("[Marketplace] ✅ Total time: {:?}", start_total.elapsed());
 
     Ok(plugins)
 }
