@@ -102,10 +102,12 @@ etools 是一个现代化的桌面生产力启动器，通过全局快捷键快�
 **注意**: etools 是一个干净的容器，不包含任何内置插件。所有插件都需要用户手动从 NPM 安装。
 
 了解更多：
+- 📑 [文档索引](./docs/INDEX.md) - 所有文档的快速导航
 - 📖 [插件管理文档](./docs/plugin-management.md)
 - 🏗️ [系统架构文档](./docs/NPM_ARCHITECTURE.md)
 - 📦 [NPM 插件规范](./docs/NPM_PLUGIN_SPEC.md)
-- 🛠️ [开发指南](./docs/NPM_PLUGIN_DEV_GUIDE.md)
+- 🛠️ [插件开发完整指南](./docs/NPM_PLUGIN_DEV_GUIDE.md) - 从零开始开发插件
+- 🎨 [插件 UI 开发指南](./docs/PLUGIN_UI_GUIDE.md) - UI 组件和设计令牌
 
 ### 快捷键
 
@@ -433,7 +435,7 @@ etools 不包含任何内置插件，但你可以创建自己的插件：
 3. 可选：实现 `ui.tsx` 自定义 UI 组件
 4. 通过插件管理器或命令行安装插件
 
-详细的插件开发指南请参考 [docs/NPM_PLUGIN_DEV_GUIDE.md](docs/NPM_PLUGIN_DEV_GUIDE.md)
+详细的插件开发指南请参考 [🛠️ 插件开发完整指南](docs/NPM_PLUGIN_DEV_GUIDE.md)，包含从零开始创建、本地测试、发布到 npm 等完整流程。
 
 #### 示例插件
 
