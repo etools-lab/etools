@@ -204,6 +204,17 @@ async function createBlobUrlFromPath(filePath: string): Promise<string> {
     }
   );
 
+  // Replace: import { PluginUIContainer, Button, Input, Card, Badge } from "@etools/plugin-sdk"
+  // With: import * as etoolsSDK from "..."; const { PluginUIContainer, Button, Input, Card, Badge } = etoolsSDK;
+  pluginCode = pluginCode.replace(
+    /import\s*\{([^}]+)\}\s*from\s+["']@etools\/plugin-sdk["']/g,
+    (match, bindings) => {
+      const bindingList = bindings.split(',').map(b => b.trim());
+      const bindingsStr = bindingList.join(', ');
+      return `import * as etoolsSDK from '${viteOrigin}/node_modules/.vite/deps/@etools_plugin-sdk.js'; const { ${bindingsStr} } = etoolsSDK;`;
+    }
+  );
+
   const blob = new Blob([pluginCode], { type: 'application/javascript' });
   return URL.createObjectURL(blob);
 }

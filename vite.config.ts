@@ -17,12 +17,21 @@ export default defineConfig(async () => ({
   // Optimizations for workers and plugin system
   optimizeDeps: {
     // Ensure plugin SDK and React are pre-bundled for import maps
-    include: ['react', 'react-dom', 'react-dom/client', '@tauri-apps/api/core'],
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      '@tauri-apps/api/core',
+      // Plugin SDK - resolve via alias
+      '@etools/plugin-sdk',
+    ],
     exclude: [],
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Plugin SDK alias for npm plugins
+      "@etools/plugin-sdk": path.resolve(__dirname, "./src/lib/plugin-sdk/index.ts"),
     },
   },
 
