@@ -54,7 +54,7 @@
   font-weight: var(--font-weight-medium);
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
-  transition: all var(--duration-fast) var(--easing-out);
+  transition: all var(--duration-fast) var(--easing-default);
   position: relative;
 }
 

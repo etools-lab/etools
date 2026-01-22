@@ -28,6 +28,19 @@ import type { PluginSearchResultV2, PluginV2 } from '@/lib/plugin-sdk/v2-types';
 import { invoke } from '@tauri-apps/api/core';
 import { getPluginSandbox } from './pluginSandbox';
 
+/**
+ * Forward console messages to Tauri backend for terminal visibility
+ */
+async function logToBackend(message: string, level: 'info' | 'error' = 'info') {
+  try {
+    await invoke('write_debug_log', {
+      message: `[Frontend ${level.toUpperCase()}] ${message}`
+    });
+  } catch (error) {
+    // Silently fail if backend is not available
+  }
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
@@ -75,7 +88,7 @@ const UNKNOWN_MANIFEST: PluginManifest = {
  */
 interface RawPluginModule {
   manifest?: PluginManifest;
-  onSearch?: (query: string) => PluginSearchResultV2[] | Promise<PluginSearchResultV2[]>;
+  onSearch?: (query: string) => Promise<PluginSearchResultV2[]>;
   init?(): Promise<void>;
   onDestroy?(): Promise<void>;
 }
@@ -158,10 +171,40 @@ function isNpmPluginPath(path: string): boolean {
 
 /**
  * Create a blob URL from file content for dynamic import
+ * Wraps the plugin code to provide JSX runtime functions
  */
 async function createBlobUrlFromPath(filePath: string): Promise<string> {
-  const fileContent = await invoke<string>('read_file', { path: filePath });
-  const blob = new Blob([fileContent], { type: 'application/javascript' });
+  let pluginCode = await invoke<string>('read_file', { path: filePath });
+
+  // Replace the jsx-runtime import with an import from Vite's pre-bundled deps
+  // This works around the limitation that import maps don't work with blob URLs
+  // Use full URL with origin so blob URL context can resolve it
+  const viteOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:1420';
+
+  // Vite pre-bundles react and react/jsx-runtime as CommonJS, so we need to use default import
+  // Replace: import { Fragment, jsx, jsxs } from "react/jsx-runtime"
+  // With: import jsxRuntime from "..."; const { Fragment, jsx, jsxs } = jsxRuntime;
+  pluginCode = pluginCode.replace(
+    /import\s*\{([^}]+)\}\s*from\s+["']react\/jsx-runtime["']/g,
+    (match, bindings) => {
+      const bindingList = bindings.split(',').map(b => b.trim());
+      const bindingsStr = bindingList.join(', ');
+      return `import jsxRuntime from '${viteOrigin}/node_modules/.vite/deps/react_jsx-runtime.js'; const { ${bindingsStr} } = jsxRuntime;`;
+    }
+  );
+
+  // Replace: import { useState, useEffect } from "react"
+  // With: import react from "..."; const { useState, useEffect } = react;
+  pluginCode = pluginCode.replace(
+    /import\s*\{([^}]+)\}\s*from\s+["']react["']/g,
+    (match, bindings) => {
+      const bindingList = bindings.split(',').map(b => b.trim());
+      const bindingsStr = bindingList.join(', ');
+      return `import react from '${viteOrigin}/node_modules/.vite/deps/react.js'; const { ${bindingsStr} } = react;`;
+    }
+  );
+
+  const blob = new Blob([pluginCode], { type: 'application/javascript' });
   return URL.createObjectURL(blob);
 }
 
@@ -316,12 +359,16 @@ export class PluginLoader {
       // Register plugin with sandbox for permission management
       getPluginSandbox().registerPlugin(manifest.id, manifest.permissions);
 
-      console.log(`${logPrefix('Loader')} Loaded: ${manifest.id} v${manifest.version}`);
+      const successMessage = `${logPrefix('Loader')} Loaded: ${manifest.id} v${manifest.version}`;
+      console.log(successMessage);
+      await logToBackend(successMessage, 'info');
 
       return { manifest, plugin };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`${logPrefix('Loader')} Failed to load from ${modulePath}:`, errorMessage);
+      const errorPrefix = `${logPrefix('Loader')} Failed to load from ${modulePath}`;
+      console.error(errorPrefix, errorMessage);
+      await logToBackend(`${errorPrefix}: ${errorMessage}`, 'error');
 
       return {
         manifest: UNKNOWN_MANIFEST,

@@ -14,8 +14,10 @@ export default defineConfig(async () => ({
     format: 'es',
   },
 
-  // Optimizations for workers
+  // Optimizations for workers and plugin system
   optimizeDeps: {
+    // Ensure plugin SDK and React are pre-bundled for import maps
+    include: ['react', 'react-dom', 'react-dom/client', '@tauri-apps/api/core'],
     exclude: [],
   },
   resolve: {
@@ -92,6 +94,11 @@ export default defineConfig(async () => ({
         // Allow loading from npm-packages directory (for development)
         path.resolve(__dirname, './npm-packages'),
       ],
+    },
+    // Add security headers for import maps (optional but recommended)
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
     },
   },
 }));

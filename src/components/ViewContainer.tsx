@@ -9,10 +9,6 @@ import { PluginUIView } from './views/PluginUIView';
 export function ViewContainer() {
   const { currentView, direction, pluginViewData } = useViewManagerStore();
 
-  useEffect(() => {
-    console.log('[ViewContainer] Current view:', currentView, 'Direction:', direction);
-  }, [currentView, direction]);
-
   return (
     <div className="view-container">
       {currentView === 'search' && (

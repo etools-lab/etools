@@ -21,7 +21,6 @@ import type {
   Plugin,
   PluginManifest,
   MarketplacePlugin,
-  PluginFilters,
   MarketplaceQueryOptions,
   BulkOperation,
   PluginHealth,
@@ -30,6 +29,32 @@ import type {
   PluginPermission,
   PluginUpdateInfo,
 } from '../types/plugin';
+
+// ============================================================================
+// Tauri Invoke Helper - 统一的错误处理
+// ============================================================================
+
+/**
+ * 简化的 Tauri invoke 调用，自动处理错误
+ */
+async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  try {
+    return await invoke<T>(cmd, args);
+  } catch (error) {
+    throw new Error(`${cmd} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * 无返回值的 Tauri invoke 调用
+ */
+async function invokeVoid(cmd: string, args?: Record<string, unknown>): Promise<void> {
+  try {
+    await invoke(cmd, args);
+  } catch (error) {
+    throw new Error(`${cmd} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
 // ============================================================================
 // Backend Raw Types (snake_case from Rust)
@@ -103,19 +128,19 @@ function convertRawPluginToFrontend(raw: RawPluginFromBackend): Plugin {
     })),
   };
 
-  // Convert usage stats
+  // Convert usage stats (use null instead of undefined for nullable fields)
   const usageStats: PluginUsageStats = {
-    lastUsed: raw.usage_stats.last_used,
+    lastUsed: raw.usage_stats.last_used ?? null,
     usageCount: raw.usage_stats.usage_count,
     lastExecutionTime: raw.usage_stats.last_execution_time ?? undefined,
     averageExecutionTime: raw.usage_stats.average_execution_time ?? undefined,
   };
 
-  // Convert triggers
-  const triggers = raw.triggers.map(t => t.keyword);
+  // Convert permissions (backend returns string[], assume they are valid PluginPermission values)
+  const permissions: PluginPermission[] = raw.permissions as PluginPermission[];
 
-  // Convert permissions
-  const permissions = raw.permissions as PluginPermission[];
+  // Convert triggers (for onSearch support)
+  const triggers = raw.triggers.map(t => t.keyword);
 
   // Build manifest
   const manifest: PluginManifest = {
@@ -134,6 +159,8 @@ function convertRawPluginToFrontend(raw: RawPluginFromBackend): Plugin {
     health,
     usageStats,
     installedAt: raw.installed_at,
+    packageName: `@etools-plugin/${raw.id}`,
+    onSearch: undefined as any,
   };
 }
 
@@ -147,172 +174,76 @@ export class PluginManagerService {
    * 直接调用后端，后端读取 package.json（< 1ms）
    */
   async getInstalledPlugins(): Promise<Plugin[]> {
-    try {
-      // 直接调用后端，后端会读取 plugins/package.json
-      const rawPlugins = await invoke<RawPluginFromBackend[]>('get_installed_plugins');
-
-      console.log('[PluginManager] Retrieved', rawPlugins.length, 'plugins from package.json');
-
-      // 转换后端数据到前端格式
-      return rawPlugins.map(convertRawPluginToFrontend);
-    } catch (error) {
-      console.error('[PluginManager] Failed to get installed plugins:', error);
-      throw new Error(
-        `Failed to load plugins: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    const rawPlugins = await invokeCmd<RawPluginFromBackend[]>('get_installed_plugins');
+    console.log('[PluginManager] Retrieved', rawPlugins.length, 'plugins from package.json');
+    return rawPlugins.map(convertRawPluginToFrontend);
   }
 
   /**
    * Enable a plugin
    */
   async enablePlugin(pluginId: string): Promise<void> {
-    try {
-      await invoke('plugin_enable', { pluginId });
-
-      // Update sandbox state
-      const { getPluginSandbox } = await import('./pluginSandbox');
-      getPluginSandbox().setPluginEnabled(pluginId, true);
-    } catch (error) {
-      console.error('Failed to enable plugin:', error);
-      throw new Error(
-        `Failed to enable plugin: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    await invokeVoid('enable_plugin', { pluginId });
+    const { getPluginSandbox } = await import('./pluginSandbox');
+    getPluginSandbox().setPluginEnabled(pluginId, true);
   }
 
   /**
    * Disable a plugin
    */
   async disablePlugin(pluginId: string): Promise<void> {
-    try {
-      await invoke('plugin_disable', { pluginId });
-
-      // Update sandbox state
-      const { getPluginSandbox } = await import('./pluginSandbox');
-      getPluginSandbox().setPluginEnabled(pluginId, false);
-    } catch (error) {
-      console.error('Failed to disable plugin:', error);
-      throw new Error(
-        `Failed to disable plugin: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    await invokeVoid('disable_plugin', { pluginId });
+    const { getPluginSandbox } = await import('./pluginSandbox');
+    getPluginSandbox().setPluginEnabled(pluginId, false);
   }
 
   /**
    * Bulk enable plugins
    */
   async bulkEnablePlugins(pluginIds: string[]): Promise<BulkOperation> {
-    try {
-      const result = await invoke<BulkOperation>('bulk_enable_plugins', {
-        pluginIds,
-      });
-      return result;
-    } catch (error) {
-      console.error('Failed to bulk enable plugins:', error);
-      throw new Error(
-        `Failed to enable plugins: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<BulkOperation>('bulk_enable_plugins', { pluginIds });
   }
 
   /**
    * Bulk disable plugins
    */
   async bulkDisablePlugins(pluginIds: string[]): Promise<BulkOperation> {
-    try {
-      const result = await invoke<BulkOperation>('bulk_disable_plugins', {
-        pluginIds,
-      });
-      return result;
-    } catch (error) {
-      console.error('Failed to bulk disable plugins:', error);
-      throw new Error(
-        `Failed to disable plugins: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<BulkOperation>('bulk_disable_plugins', { pluginIds });
   }
 
   /**
    * Uninstall a plugin
    */
   async uninstallPlugin(pluginId: string): Promise<void> {
-    try {
-      await invoke('plugin_uninstall', { pluginId });
-    } catch (error) {
-      console.error('Failed to uninstall plugin:', error);
-      throw new Error(
-        `Failed to uninstall plugin: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    await invokeVoid('plugin_uninstall', { pluginId });
   }
 
   /**
    * Bulk uninstall plugins
    */
   async bulkUninstallPlugins(pluginIds: string[]): Promise<BulkOperation> {
-    try {
-      const result = await invoke<BulkOperation>('bulk_uninstall_plugins', {
-        pluginIds,
-      });
-      return result;
-    } catch (error) {
-      console.error('Failed to bulk uninstall plugins:', error);
-      throw new Error(
-        `Failed to uninstall plugins: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<BulkOperation>('bulk_uninstall_plugins', { pluginIds });
   }
 
   /**
    * Get plugin health status
    */
   async getPluginHealth(pluginId: string): Promise<PluginHealth> {
-    try {
-      const health = await invoke<PluginHealth>('plugin_get_health', {
-        pluginId,
-      });
-      return health;
-    } catch (error) {
-      console.error('Failed to get plugin health:', error);
-      throw new Error(
-        `Failed to get health: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<PluginHealth>('plugin_get_health', { pluginId });
   }
 
   /**
    * Check plugin health (trigger health check)
    */
   async refreshPluginHealth(pluginId: string): Promise<PluginHealth> {
-    try {
-      const health = await invoke<PluginHealth>('plugin_check_health', {
-        pluginId,
-      });
-      return health;
-    } catch (error) {
-      console.error('Failed to check plugin health:', error);
-      throw new Error(
-        `Failed to check health: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<PluginHealth>('plugin_check_health', { pluginId });
   }
 
   /**
    * Get plugin usage statistics
    */
   async getPluginUsageStats(pluginId: string): Promise<PluginUsageStats> {
-    try {
-      const stats = await invoke<PluginUsageStats>('plugin_get_usage_stats', {
-        pluginId,
-      });
-      return stats;
-    } catch (error) {
-      console.error('Failed to get plugin usage stats:', error);
-      throw new Error(
-        `Failed to get usage stats: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<PluginUsageStats>('plugin_get_usage_stats', { pluginId });
   }
 
   /**
@@ -322,14 +253,7 @@ export class PluginManagerService {
     pluginId: string,
     config: Record<string, string | number | boolean>
   ): Promise<void> {
-    try {
-      await invoke('plugin_update_config', { pluginId, config });
-    } catch (error) {
-      console.error('Failed to update plugin config:', error);
-      throw new Error(
-        `Failed to update config: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    await invokeVoid('plugin_update_config', { pluginId, config });
   }
 
   /**
@@ -339,14 +263,7 @@ export class PluginManagerService {
     pluginId: string,
     permissions: string[]
   ): Promise<void> {
-    try {
-      await invoke('plugin_grant_permissions', { pluginId, permissions });
-    } catch (error) {
-      console.error('Failed to grant permissions:', error);
-      throw new Error(
-        `Failed to grant permissions: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    await invokeVoid('plugin_grant_permissions', { pluginId, permissions });
   }
 
   /**
@@ -356,14 +273,7 @@ export class PluginManagerService {
     pluginId: string,
     permissions: string[]
   ): Promise<void> {
-    try {
-      await invoke('plugin_revoke_permissions', { pluginId, permissions });
-    } catch (error) {
-      console.error('Failed to revoke permissions:', error);
-      throw new Error(
-        `Failed to revoke permissions: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    await invokeVoid('plugin_revoke_permissions', { pluginId, permissions });
   }
 }
 
@@ -378,29 +288,18 @@ export class MarketplaceService {
   async getMarketplacePlugins(
     options: MarketplaceQueryOptions = {}
   ): Promise<{ plugins: MarketplacePlugin[]; total: number; hasMore: boolean }> {
-    try {
-      const result = await invoke<{
-        plugins: MarketplacePlugin[];
-        total: number;
-        page: number;
-        pageSize: number;
-        hasMore: boolean;
-      }>('marketplace_list', {
-        category: options.category,
-        page: options.page || 1,
-        pageSize: options.pageSize || 20,
-      });
-      return {
-        plugins: result.plugins,
-        total: result.total,
-        hasMore: result.hasMore,
-      };
-    } catch (error) {
-      console.error('Failed to get marketplace plugins:', error);
-      throw new Error(
-        `Failed to load marketplace: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    const result = await invokeCmd<{
+      plugins: MarketplacePlugin[];
+      total: number;
+      page: number;
+      pageSize: number;
+      hasMore: boolean;
+    }>('marketplace_list', {
+      category: options.category,
+      page: options.page || 1,
+      pageSize: options.pageSize || 20,
+    });
+    return { plugins: result.plugins, total: result.total, hasMore: result.hasMore };
   }
 
   /**
@@ -410,30 +309,14 @@ export class MarketplaceService {
     query: string,
     options: MarketplaceQueryOptions = {}
   ): Promise<{ plugins: MarketplacePlugin[]; total: number; hasMore: boolean }> {
-    try {
-      const result = await invoke<{
-        plugins: MarketplacePlugin[];
-        total: number;
-        page: number;
-        pageSize: number;
-        hasMore: boolean;
-      }>('marketplace_search', {
-        query,
-        category: options.category,
-        page: options.page || 1,
-        pageSize: options.pageSize || 20,
-      });
-      return {
-        plugins: result.plugins,
-        total: result.total,
-        hasMore: result.hasMore,
-      };
-    } catch (error) {
-      console.error('Failed to search marketplace:', error);
-      throw new Error(
-        `Failed to search marketplace: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    const result = await invokeCmd<{
+      plugins: MarketplacePlugin[];
+      total: number;
+      page: number;
+      pageSize: number;
+      hasMore: boolean;
+    }>('marketplace_search', { query, ...options, page: options.page || 1, pageSize: options.pageSize || 20 });
+    return { plugins: result.plugins, total: result.total, hasMore: result.hasMore };
   }
 
   /**
@@ -441,18 +324,10 @@ export class MarketplaceService {
    */
   async installPlugin(
     pluginId: string,
-    onProgress?: (progress: number) => void
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _onProgress?: (progress: number) => void
   ): Promise<Plugin> {
-    try {
-      // TODO: Add progress callback support
-      const plugin = await invoke<Plugin>('marketplace_install', { packageName: pluginId });
-      return plugin;
-    } catch (error) {
-      console.error('Failed to install plugin:', error);
-      throw new Error(
-        `Failed to install plugin: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<Plugin>('marketplace_install', { packageName: pluginId });
   }
 
   /**
@@ -460,44 +335,21 @@ export class MarketplaceService {
    * Returns a list of plugins that have updates available
    */
   async checkUpdates(): Promise<PluginUpdateInfo[]> {
-    try {
-      const updates = await invoke<PluginUpdateInfo[]>('marketplace_check_updates');
-      return updates;
-    } catch (error) {
-      console.error('Failed to check for updates:', error);
-      throw new Error(
-        `Failed to check updates: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<PluginUpdateInfo[]>('marketplace_check_updates');
   }
 
   /**
    * Update a plugin to the latest version
    */
   async updatePlugin(packageName: string): Promise<Plugin> {
-    try {
-      const plugin = await invoke<Plugin>('marketplace_update', { packageName });
-      return plugin;
-    } catch (error) {
-      console.error('Failed to update plugin:', error);
-      throw new Error(
-        `Failed to update plugin: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
+    return invokeCmd<Plugin>('marketplace_update', { packageName });
   }
 
   /**
    * Get plugin categories
    */
   getCategories(): PluginCategory[] {
-    return [
-      'productivity',
-      'developer',
-      'utilities',
-      'search',
-      'media',
-      'integration',
-    ];
+    return ['productivity', 'developer', 'utilities', 'search', 'media', 'integration'];
   }
 }
 

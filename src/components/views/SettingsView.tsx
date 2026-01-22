@@ -15,7 +15,6 @@ export function SettingsView() {
   const [isPluginTabMounted, setIsPluginTabMounted] = useState(true); // 默认挂载插件 tab
 
   const handleTabClick = useCallback((tab: SettingsTab) => {
-    console.log('[SettingsView] 切换 tab:', tab);
     setActiveTab(tab);
 
     // 只有当切换到插件 tab 时，才挂载 PluginManager
@@ -52,6 +51,7 @@ export function SettingsView() {
           style={{
             display: activeTab === 'plugins' ? 'block' : 'none'
           }}
+          inert={activeTab !== 'plugins'}
         >
           {/* 只有当用户切换到插件 tab 时才挂载 PluginManager */}
           {isPluginTabMounted && (
@@ -66,6 +66,7 @@ export function SettingsView() {
           style={{
             display: activeTab === 'hotkeys' ? 'block' : 'none'
           }}
+          inert={activeTab !== 'hotkeys'}
         >
           <HotkeySettingsPanel />
         </div>

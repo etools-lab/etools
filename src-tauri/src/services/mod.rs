@@ -3,6 +3,7 @@ pub mod browser_reader;
 pub mod clipboard_watcher;
 pub mod config_service;
 pub mod file_indexer;
+pub mod logger;
 pub mod marketplace_service;
 pub mod performance;
 pub mod plugin_errors;
@@ -16,3 +17,4 @@ pub mod window_calculator;
 
 pub use screen_detector::detect_screen_info;
 pub use window_calculator::calculate_window_layout;
+pub use logger::{init_logger, get_log_file_path, read_log_file, clear_log_file};

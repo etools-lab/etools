@@ -10,16 +10,9 @@ import './BackButton.css';
  * Also handles Escape key (T055-T057) for going back.
  */
 export function BackButton() {
-  const { canGoBack, goBack, currentView, history } = useViewManagerStore();
-
-  console.log('[BackButton] 渲染状态:');
-  console.log('  - 当前视图:', currentView);
-  console.log('  - 历史记录数量:', history.length);
-  console.log('  - 可返回:', canGoBack());
+  const { canGoBack, goBack, currentView } = useViewManagerStore();
 
   const handleClick = () => {
-    console.log('[BackButton] 点击返回按钮');
-    console.log('  - 历史记录:', history);
     goBack();
   };
 
@@ -28,13 +21,9 @@ export function BackButton() {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only trigger Escape if not in search view (FR-022)
       if (event.key === 'Escape' && currentView !== 'search') {
-        console.log('[BackButton] 检测到 Escape 键');
         if (canGoBack()) {
-          console.log('[BackButton] 执行返回');
           event.preventDefault();
           goBack();
-        } else {
-          console.log('[BackButton] 没有历史记录，忽略 Escape');
         }
       }
     };
@@ -47,11 +36,8 @@ export function BackButton() {
 
   // Don't render if no history (FR-022: Hide when in root view)
   if (!canGoBack()) {
-    console.log('[BackButton] 不渲染按钮（canGoBack = false）');
     return null;
   }
-
-  console.log('[BackButton] 渲染返回按钮');
 
   return (
     <button

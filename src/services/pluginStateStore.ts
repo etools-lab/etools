@@ -40,6 +40,9 @@ const initialState: PluginManagerState = {
 
   // Notifications
   notifications: [],
+
+  // Plugin list version for cache invalidation
+  pluginListVersion: 0,
 };
 
 /**
@@ -226,6 +229,12 @@ function pluginReducer(
         notifications: state.notifications.filter((n) => n.id !== action.payload),
       };
 
+    case 'INCREMENT_PLUGIN_VERSION':
+      return {
+        ...state,
+        pluginListVersion: state.pluginListVersion + 1,
+      };
+
     default:
       return state;
   }
@@ -267,38 +276,35 @@ export function PluginStoreProvider({ children }: PluginStoreProviderProps) {
 }
 
 /**
+ * Get context - shared helper for all hooks
+ */
+function usePluginContext(): PluginStateContextType {
+  const context = useContext(PluginStateContext);
+  if (!context) {
+    throw new Error('usePlugin* hooks must be used within PluginStoreProvider');
+  }
+  return context;
+}
+
+/**
  * Hook to access plugin state
  */
 export function usePluginState(): PluginManagerState {
-  const context = useContext(PluginStateContext);
-  if (!context) {
-    throw new Error('usePluginState must be used within PluginStoreProvider');
-  }
-  return context.state;
+  return usePluginContext().state;
 }
 
 /**
  * Hook to access dispatch function
  */
 export function usePluginDispatch(): React.Dispatch<PluginManagerAction> {
-  const context = useContext(PluginStateContext);
-  if (!context) {
-    throw new Error(
-      'usePluginDispatch must be used within PluginStoreProvider'
-    );
-  }
-  return context.dispatch;
+  return usePluginContext().dispatch;
 }
 
 /**
  * Hook to access both state and dispatch
  */
 export function usePluginStore(): PluginStateContextType {
-  const context = useContext(PluginStateContext);
-  if (!context) {
-    throw new Error('usePluginStore must be used within PluginStoreProvider');
-  }
-  return context;
+  return usePluginContext();
 }
 
 /**

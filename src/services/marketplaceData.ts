@@ -43,7 +43,7 @@ function convertBackendToFrontend(backend: any): MarketplacePlugin {
     author: backend.author,
     homepage: backend.homepage || undefined,
     version: backend.latestVersion || backend.version,
-    downloads: backend.downloadCount || backend.download_count || 0,
+    downloads: backend.download_count || 0,
     features: (backend.tags || []).slice(0, 5),  // 从 tags 生成 features
     keywords: backend.tags || [],
     category: backend.category as PluginCategory,

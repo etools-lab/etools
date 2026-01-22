@@ -106,7 +106,7 @@ impl MarketplaceService {
     /// Perform npm search
     fn npm_search(&self, url: &str) -> MarketplaceResult<NpmSearchResponse> {
         println!("[Marketplace] Fetching from: {}", url);
-        
+
         let client = reqwest::blocking::Client::builder()
             .user_agent("etools-marketplace/1.0.0")
             .build()
@@ -121,15 +121,41 @@ impl MarketplaceService {
         }
 
         let body = response.text().map_err(|e| format!("Failed to read response body: {}", e))?;
-        
+
         let search_response: NpmSearchResponse = serde_json::from_str(&body)
             .map_err(|e| format!("Failed to parse npm response: {}", e))?;
 
         Ok(search_response)
     }
 
+    /// Fetch complete package.json from npm registry
+    fn fetch_package_json(&self, package_name: &str) -> MarketplaceResult<Value> {
+        let url = format!("{}/{}", NPM_REGISTRY_API, package_name);
+        println!("[Marketplace] Fetching package.json from: {}", url);
+
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("etools-marketplace/1.0.0")
+            .build()
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+        let response = client.get(&url)
+            .send()
+            .map_err(|e| format!("Failed to fetch package.json: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(format!("NPM registry returned status: {}", response.status()));
+        }
+
+        let body = response.text().map_err(|e| format!("Failed to read package.json: {}", e))?;
+        let package_info: Value = serde_json::from_str(&body)
+            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+        Ok(package_info)
+    }
+
     /// Convert npm packages to marketplace plugins
     /// 使用 ETP 协议严格验证元数据
+    /// 需要从 npm registry 获取完整的 package.json 来验证 ETP 元数据
     fn convert_npm_to_marketplace(
         &self,
         objects: Vec<NpmSearchObject>,
@@ -140,21 +166,40 @@ impl MarketplaceService {
             .filter_map(|obj| {
                 let package = obj.package;
 
-                // 构造完整的 package.json 对象（用于 ETP 解析）
-                let mut package_json = serde_json::json!({
-                    "name": package.name,
-                    "version": package.version,
-                    "description": package.description,
-                    "keywords": package.keywords,
-                });
+                // 从 npm registry 获取完整的 package.json（包含 etools 字段）
+                let package_info = match self.fetch_package_json(&package.name) {
+                    Ok(info) => info,
+                    Err(e) => {
+                        println!(
+                            "[Marketplace] ⚠️  Failed to fetch package.json for '{}': {}",
+                            package.name, e
+                        );
+                        return None;
+                    }
+                };
 
-                // 如果有 etools 元数据，添加到 package_json
-                if let Some(etools_meta) = &package.etools {
-                    package_json["etools"] = serde_json::to_value(etools_meta).unwrap();
-                }
+                // 提取最新版本的 package.json
+                let latest_version = package_info.get("dist-tags")
+                    .and_then(|tags| tags.get("latest"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&package.version);
+
+                let version_data = package_info.get("versions")
+                    .and_then(|versions| versions.get(latest_version));
+
+                let version_json = match version_data {
+                    Some(v) => v,
+                    None => {
+                        println!(
+                            "[Marketplace] ⚠️  Package '{}' missing version data for '{}'",
+                            package.name, latest_version
+                        );
+                        return None;
+                    }
+                };
 
                 // 使用 ETP 协议解析元数据（严格模式，不符合协议的包将被过滤）
-                let metadata = match EtoolsMetadata::from_package_json(&package_json) {
+                let metadata = match EtoolsMetadata::from_package_json(version_json) {
                     Ok(meta) => meta,
                     Err(e) => {
                         println!(
@@ -183,7 +228,7 @@ impl MarketplaceService {
                 Some(MarketplacePlugin {
                     id: metadata.id.clone(),
                     name: metadata.display_name.clone(),
-                    version: package.version.clone(),
+                    version: latest_version.to_string(),
                     description: metadata.description
                         .unwrap_or_else(|| package.description.clone()),
                     author: Self::extract_author(&package),
@@ -199,7 +244,7 @@ impl MarketplaceService {
                     installed: false,
                     installed_version: None,
                     update_available: false,
-                    latest_version: package.version,
+                    latest_version: latest_version.to_string(),
                     screenshots: metadata.screenshots,
                     tags: package.keywords,
                     published_at: 0,
@@ -438,8 +483,8 @@ impl MarketplaceService {
             return Err(format!("Plugin {} already installed", package_name));
         }
 
-        // 7. Add plugin as dependency
-        dependencies[package_name] = serde_json::json!(package_name.to_string());
+        // 7. Add plugin as dependency with "latest" version
+        dependencies[package_name] = serde_json::json!("latest");
 
         // 8. Write updated package.json
         let updated_json = serde_json::to_string_pretty(&package_data)
@@ -448,10 +493,9 @@ impl MarketplaceService {
         std::fs::write(&package_json_path, updated_json)
             .map_err(|e| format!("Failed to write package.json: {}", e))?;
 
-        // 9. Run npm install (in plugins directory)
-        let node_modules_dir = plugins_dir.join("node_modules");
+        // 9. Run npm install (in plugins directory, not node_modules)
         let output = Command::new("npm")
-            .current_dir(&node_modules_dir)
+            .current_dir(&plugins_dir)
             .args(["install", package_name])
             .output()
             .map_err(|e| format!("Failed to execute npm install: {}", e))?;
@@ -460,9 +504,10 @@ impl MarketplaceService {
             return Err(format!("npm install failed: {}", String::from_utf8_lossy(&output.stderr)));
         }
 
-        println!("[Marketplace] npm install output: {}", String::from_utf8_lossy(&output.stdout));
+        println!("[Marketplace] npm install output:\n{}", String::from_utf8_lossy(&output.stdout));
 
         // 10. Read plugin package.json
+        let node_modules_dir = plugins_dir.join("node_modules");
         let plugin_path = node_modules_dir.join(package_name);
         let plugin_package_json_path = plugin_path.join("package.json");
         let plugin_package_json_content = std::fs::read_to_string(&plugin_package_json_path)

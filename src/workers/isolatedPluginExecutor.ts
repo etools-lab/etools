@@ -11,8 +11,7 @@
  */
 
 import type { PluginPermission } from '@/lib/plugin-sdk/types';
-import type { PluginSearchResult, PluginManifest } from '@/lib/plugin-sdk/types';
-import type { PluginSearchResultV2, PluginActionData } from '@/lib/plugin-sdk/v2-types';
+import type { PluginSearchResultV2 } from '@/lib/plugin-sdk/v2-types';
 
 interface ExecuteMessage {
   type: 'execute';
@@ -39,47 +38,11 @@ interface LogMessage {
 }
 
 /**
- * Permission checker
- */
-function checkPermission(permissions: PluginPermission[], required: PluginPermission): boolean {
-  return permissions.includes(required);
-}
-
-/**
- * Create a sandboxed invoke function that checks permissions
- */
-function createSandboxedInvoke(
-  pluginId: string,
-  permissions: PluginPermission[]
-) {
-  return async (cmd: string, args?: Record<string, unknown>) => {
-    // Permission map for Tauri commands
-    const PERMISSION_MAP: Record<string, PluginPermission> = {
-      'get_clipboard_history': 'read:clipboard',
-      'paste_clipboard_item': 'write:clipboard',
-      'read_file': 'read:files',
-      'write_file': 'write:files',
-      'execute_shell': 'shell:execute',
-      'send_notification': 'show:notification',
-    };
-
-    const required = PERMISSION_MAP[cmd];
-    if (required && !checkPermission(permissions, required)) {
-      throw new Error(`Plugin ${pluginId} lacks required permission for ${cmd}`);
-    }
-
-    // Import Tauri API dynamically
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke(cmd, args);
-  };
-}
-
-/**
  * Create a sandboxed environment for the plugin
  */
 function createSandboxEnvironment(
   pluginId: string,
-  permissions: PluginPermission[]
+  _permissions: PluginPermission[]
 ) {
   return {
     console: {
@@ -140,6 +103,13 @@ async function executeWithTimeout<T>(
 }
 
 /**
+ * Check if a path is an npm plugin path
+ */
+function isNpmPluginPath(path: string): boolean {
+  return path.includes('node_modules') && path.includes('@etools-plugin');
+}
+
+/**
  * Message handler
  */
 self.onmessage = async (event: MessageEvent<ExecuteMessage>) => {
@@ -185,6 +155,41 @@ self.onmessage = async (event: MessageEvent<ExecuteMessage>) => {
     }
 
     console.log(`[IsolatedPluginExecutor] Importing from: ${importPath}`);
+
+    // For npm plugins, we need to transform the code since import maps don't work in workers
+    if (isNpmPluginPath(importPath)) {
+      console.log(`[IsolatedPluginExecutor] Transforming npm plugin for worker context`);
+
+      // Import Tauri API to read file content
+      const { invoke } = await import('@tauri-apps/api/core');
+
+      // Read the plugin file and transform imports
+      const fileContent = await invoke<string>('read_file', { path: importPath });
+
+      // Define transformation options using Vite pre-bundled deps (development environment)
+      const options = {
+        reactPath: '/node_modules/.vite/deps/react.js',
+        reactJsxRuntimePath: '/node_modules/.vite/deps/react_jsx-runtime.js',
+        reactDOMPath: '/node_modules/.vite/deps/react-dom.js',
+        reactDOMClientPath: '/node_modules/.vite/deps/react-dom_client.js',
+        pluginSDKPath: '/src/lib/plugin-sdk/index.ts',
+      };
+
+      // Simple regex-based import replacement
+      let transformed = fileContent;
+      transformed = transformed.replace(/from ['"]react['"]/g, `from "${options.reactPath}"`);
+      transformed = transformed.replace(/from ['"]react\/jsx-runtime['"]/g, `from "${options.reactJsxRuntimePath}"`);
+      transformed = transformed.replace(/from ['"]react-dom['"]/g, `from "${options.reactDOMPath}"`);
+      transformed = transformed.replace(/from ['"]react-dom\/client['"]/g, `from "${options.reactDOMClientPath}"`);
+      transformed = transformed.replace(/from ['"]@etools\/plugin-sdk['"]/g, `from "${options.pluginSDKPath}"`);
+      transformed = transformed.replace(/from ['"]@etools\/plugin-sdk\/ui['"]/g, `from "${options.pluginSDKPath}/ui"`);
+
+      // Create blob URL from transformed code
+      const blob = new Blob([transformed], { type: 'application/javascript' });
+      importPath = URL.createObjectURL(blob);
+
+      console.log(`[IsolatedPluginExecutor] Created transformed blob URL`);
+    }
 
     // Create sandboxed environment
     const sandbox = createSandboxEnvironment(pluginId, permissions);

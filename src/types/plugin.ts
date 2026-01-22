@@ -245,6 +245,7 @@ export interface Plugin extends Omit<SDKPlugin, 'manifest'> {
   // === Update information (for marketplace plugins) ===
   updateAvailable?: boolean;           // Whether an update is available
   latestVersion?: string;              // Latest version from npm
+  packageName?: string;               // npm package name (e.g., "@etools-plugin/devtools")
 }
 
 // ============================================================================
@@ -411,6 +412,9 @@ export interface PluginManagerState {
 
   // === Notifications ===
   notifications: PluginNotification[];
+
+  // === Cache invalidation ===
+  pluginListVersion: number;
 }
 
 /**
@@ -446,7 +450,10 @@ export type PluginManagerAction =
 
   // === Notifications ===
   | { type: 'SHOW_NOTIFICATION'; payload: Omit<PluginNotification, 'id'> }
-  | { type: 'DISMISS_NOTIFICATION'; payload: string };
+  | { type: 'DISMISS_NOTIFICATION'; payload: string }
+
+  // === Cache invalidation ===
+  | { type: 'INCREMENT_PLUGIN_VERSION' };
 
 // ============================================================================
 // Service Types
@@ -460,16 +467,6 @@ export interface PluginFilters {
   health?: PluginHealthStatus;
   category?: PluginCategory;
 }
-
-/**
- * Permission status map
- */
-export type PermissionStatusMap = Map<PluginPermission, boolean>;
-
-/**
- * Plugin config map
- */
-export type PluginConfigMap = Record<string, string | number | boolean>;
 
 /**
  * Marketplace query options
@@ -487,52 +484,4 @@ export interface MarketplaceQueryOptions {
  */
 export interface MarketplaceSearchOptions extends MarketplaceQueryOptions {
   searchIn?: ('name' | 'description' | 'author' | 'tags')[];
-}
-
-/**
- * Marketplace plugin page result
- */
-export interface MarketplacePluginPage {
-  plugins: MarketplacePlugin[];
-  total: number;
-  page: number;
-  pageSize: number;
-  hasMore: boolean;
-}
-
-/**
- * Install result
- */
-export interface InstallResult {
-  success: boolean;
-  plugin?: Plugin;
-  error?: string;
-}
-
-/**
- * Update result
- */
-export interface UpdateResult {
-  success: boolean;
-  previousVersion?: string;
-  newVersion?: string;
-  error?: string;
-}
-
-// ============================================================================
-// Error Types
-// ============================================================================
-
-/**
- * Plugin error exception class
- */
-export class PluginException extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public context?: Record<string, unknown>
-  ) {
-    super(message);
-    this.name = 'PluginError';
-  }
 }

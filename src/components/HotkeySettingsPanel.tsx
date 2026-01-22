@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { HotkeyEditor } from './HotkeyEditor';
 import { Kbd } from './ui/Kbd';
+import { usePluginDispatch } from '../services/pluginStateStore';
 import '../styles/components/HotkeySettingsPanel.css';
 
 interface ShortcutPreset {
@@ -35,6 +36,7 @@ const SHORTCUT_PRESETS: ShortcutPreset[] = [
 ];
 
 export function HotkeySettingsPanel() {
+  const dispatch = usePluginDispatch();
   const [currentHotkey, setCurrentHotkey] = useState<string>('Cmd+Shift+K');
   const [editingHotkey, setEditingHotkey] = useState(false);
   const [conflicts, setConflicts] = useState<string[]>([]);
@@ -66,7 +68,6 @@ export function HotkeySettingsPanel() {
     try {
       const path = await invoke<string>('get_settings_file_path');
       setSettingsPath(path);
-      console.log('[Settings] Config file path:', path);
     } catch (error) {
       console.error('Failed to get settings path:', error);
     }
@@ -74,43 +75,55 @@ export function HotkeySettingsPanel() {
 
   const handleHotkeySave = async (newHotkey: string) => {
     try {
-      console.log('[HotkeySettingsPanel] Saving hotkey:', newHotkey);
 
       // Check for conflicts
       const conflictList = await invoke<string[]>('check_hotkey_conflicts', { hotkey: newHotkey });
 
       if (conflictList.length > 0) {
         setConflicts(conflictList);
-        // Show warning but allow save
-        if (!confirm(`此快捷键可能与系统功能冲突：\n${conflictList.join('\n')}\n\n是否继续？`)) {
-          console.log('[HotkeySettingsPanel] User cancelled due to conflicts');
-          return;
-        }
+        dispatch({
+          type: 'SHOW_NOTIFICATION',
+          payload: {
+            type: 'warning',
+            title: '快捷键冲突',
+            message: `此快捷键可能与系统功能冲突：${conflictList.join(', ')}`,
+            duration: 0,
+          },
+        });
       }
 
       // Reregister the hotkey dynamically (no restart needed)
       await invoke('reregister_hotkey', { hotkey: newHotkey });
-      console.log('[HotkeySettingsPanel] Hotkey re-registered successfully');
 
       setCurrentHotkey(newHotkey);
       setEditingHotkey(false);
       setConflicts([]);
 
-      // Show success message
-      alert('快捷键已更新，立即生效');
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'success',
+          title: '快捷键已更新',
+          message: '立即生效',
+        },
+      });
     } catch (error) {
       console.error('Failed to save hotkey:', error);
-      alert('保存快捷键失败：' + (error instanceof Error ? error.message : '未知错误'));
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'error',
+          title: '保存失败',
+          message: error instanceof Error ? error.message : '未知错误',
+          duration: 0,
+        },
+      });
     }
   };
 
   const handleResetHotkey = async () => {
-    console.log('[HotkeySettingsPanel] ===== handleResetHotkey called =====');
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const defaultHotkey = isMac ? 'Cmd+Shift+K' : 'Ctrl+Shift+K';
-    console.log('[HotkeySettingsPanel] Platform:', navigator.platform, 'isMac:', isMac);
-    console.log('[HotkeySettingsPanel] Default hotkey:', defaultHotkey);
-    console.log('[HotkeySettingsPanel] Resetting to default hotkey');
 
     // Directly reset to default without confirmation
     await handleHotkeySave(defaultHotkey);
@@ -272,7 +285,15 @@ export function HotkeySettingsPanel() {
               className="debug-info__copy-button"
               onClick={() => {
                 navigator.clipboard.writeText(settingsPath);
-                alert('路径已复制到剪贴板');
+                dispatch({
+                  type: 'SHOW_NOTIFICATION',
+                  payload: {
+                    type: 'success',
+                    title: '复制成功',
+                    message: '路径已复制到剪贴板',
+                    duration: 2000,
+                  },
+                });
               }}
             >
               复制路径

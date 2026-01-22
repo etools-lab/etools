@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { abbreviationService, type Abbreviation, type AbbreviationCategory, type AbbreviationConfig } from '@/services/abbreviationService';
+import { usePluginDispatch } from '@/services/pluginStateStore';
 
 interface AbbreviationManagerProps {
   onClose?: () => void;
 }
 
 export function AbbreviationManager({ onClose }: AbbreviationManagerProps) {
+  const dispatch = usePluginDispatch();
   const [config, setConfig] = useState<AbbreviationConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,7 +52,15 @@ export function AbbreviationManager({ onClose }: AbbreviationManagerProps) {
 
   const handleAddOrUpdate = async () => {
     if (!formData.abbr || !formData.expansion) {
-      alert('请填写缩写和展开内容');
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'warning',
+          title: '提示',
+          message: '请填写缩写和展开内容',
+          duration: 2000,
+        },
+      });
       return;
     }
 
@@ -60,24 +70,47 @@ export function AbbreviationManager({ onClose }: AbbreviationManagerProps) {
       } else {
         await abbreviationService.addAbbreviation(formData);
       }
-      
+
       await loadConfig();
       resetForm();
     } catch (error) {
       console.error('Failed to save abbreviation:', error);
-      alert('保存失败: ' + error);
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'error',
+          title: '保存失败',
+          message: String(error),
+          duration: 0,
+        },
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定要删除这个缩写吗？')) return;
-
     try {
       await abbreviationService.deleteAbbreviation(id);
       await loadConfig();
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'success',
+          title: '删除成功',
+          message: '缩写已删除',
+          duration: 2000,
+        },
+      });
     } catch (error) {
       console.error('Failed to delete abbreviation:', error);
-      alert('删除失败: ' + error);
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'error',
+          title: '删除失败',
+          message: String(error),
+          duration: 0,
+        },
+      });
     }
   };
 
@@ -117,7 +150,15 @@ export function AbbreviationManager({ onClose }: AbbreviationManagerProps) {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to export config:', error);
-      alert('导出失败: ' + error);
+      dispatch({
+        type: 'SHOW_NOTIFICATION',
+        payload: {
+          type: 'error',
+          title: '导出失败',
+          message: String(error),
+          duration: 0,
+        },
+      });
     }
   };
 
@@ -133,10 +174,26 @@ export function AbbreviationManager({ onClose }: AbbreviationManagerProps) {
         const text = await file.text();
         await abbreviationService.importConfig(text);
         await loadConfig();
-        alert('导入成功！');
+        dispatch({
+          type: 'SHOW_NOTIFICATION',
+          payload: {
+            type: 'success',
+            title: '导入成功',
+            message: '配置已导入',
+            duration: 2000,
+          },
+        });
       } catch (error) {
         console.error('Failed to import config:', error);
-        alert('导入失败: ' + error);
+        dispatch({
+          type: 'SHOW_NOTIFICATION',
+          payload: {
+            type: 'error',
+            title: '导入失败',
+            message: String(error),
+            duration: 0,
+          },
+        });
       }
     };
     input.click();

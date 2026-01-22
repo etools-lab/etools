@@ -244,8 +244,6 @@ export function SearchView() {
   }, [limitedResults]);
 
   const handleSettingsClick = async () => {
-    console.log('[SearchView] ===== 点击设置按钮 =====');
-    console.log('[SearchView] 参数: skipResize = true (保持窗口大小)');
     try {
       await navigateToView('settings', true); // true = skip resize
     } catch (error) {
@@ -401,32 +399,12 @@ export function SearchView() {
               <div className="default-section">
                 <div className="default-section__header">
                   <h3 className="default-section__title">应用市场</h3>
-                  <button className="default-section__more">更多</button>
                 </div>
-                <div className="default-section__items default-section__items--marketplace">
-                  <div className="default-item">
-                    <span className="default-item__icon">📁</span>
-                    <span className="default-item__text">微宅计划</span>
-                  </div>
-                  <div className="default-item">
-                    <span className="default-item__icon">🖼️</span>
-                    <span className="default-item__text">Photor -...</span>
-                  </div>
-                  <div className="default-item">
-                    <span className="default-item__icon">⛰️</span>
-                    <span className="default-item__text">墙口算法...</span>
-                  </div>
-                  <div className="default-item">
-                    <span className="default-item__icon">📊</span>
-                    <span className="default-item__text">泡泡规划器</span>
-                  </div>
-                  <div className="default-item">
-                    <span className="default-item__icon">💰</span>
-                    <span className="default-item__text">汇率计算器</span>
-                  </div>
-                  <div className="default-item">
-                    <span className="default-item__icon">🎬</span>
-                    <span className="default-item__text">视频去水印</span>
+                <div className="marketplace-coming-soon">
+                  <div className="marketplace-placeholder">
+                    <div className="marketplace-placeholder__icon">🚧</div>
+                    <div className="marketplace-placeholder__title">应用市场即将上线</div>
+                    <div className="marketplace-placeholder__text">敬请期待更多优质插件</div>
                   </div>
                 </div>
               </div>

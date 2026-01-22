@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { usePluginDispatch, usePluginState } from '../../services/pluginStateStore';
 import { useBulkSelection } from '../../hooks/useBulkSelection';
 import { pluginManagerService } from '../../services/pluginManager';
+import type { BulkOperation } from '../../types/plugin';
 import './BulkActionsToolbar.css';
 
 interface BulkActionsToolbarProps {
@@ -27,6 +28,33 @@ interface BulkActionsToolbarProps {
 }
 
 /**
+ * Generic bulk operation handler
+ */
+const handleBulkOperation = async (
+  operation: () => Promise<BulkOperation>,
+  operationName: string,
+  dispatch: React.Dispatch<any>,
+  selectedIds: string[],
+  onComplete?: () => void
+): Promise<{ success: number; failed: number }> => {
+  const result = await operation();
+  const successCount = result.results.filter((r) => r.success).length;
+  const failedCount = result.results.filter((r) => !r.success).length;
+
+  dispatch({
+    type: 'SHOW_NOTIFICATION',
+    payload: {
+      type: failedCount === 0 ? 'success' : 'error',
+      title: `批量${operationName}完成`,
+      message: `成功${operationName} ${successCount}/${selectedIds.length} 个插件`,
+    },
+  });
+
+  onComplete?.();
+  return { success: successCount, failed: failedCount };
+};
+
+/**
  * BulkActionsToolbar - Toolbar for bulk operations
  */
 const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
@@ -45,44 +73,33 @@ const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
   } | null>(null);
 
   /**
-   * Handle bulk enable
+   * Execute bulk operation with common error handling
    */
-  const handleBulkEnable = async () => {
+  const executeBulkOperation = async (
+    operation: () => Promise<BulkOperation>,
+    operationName: string,
+    needsConfirmation = false
+  ) => {
     const selectedIds = Array.from(state.selectedPluginIds);
     if (selectedIds.length === 0) return;
+
+    if (needsConfirmation && !confirm(`确定要${operationName}选中的 ${selectedIds.length} 个插件吗？此操作不可撤销。`)) {
+      return;
+    }
 
     setOperationInProgress(true);
     setOperationResult(null);
 
     try {
-      const result = await pluginManagerService.bulkEnablePlugins(selectedIds);
-
-      setOperationResult({
-        success: result.results.filter((r) => r.success).length,
-        failed: result.results.filter((r) => !r.success).length,
-      });
-
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'success',
-          title: '批量启用完成',
-          message: `成功启用 ${result.results.filter((r) => r.success).length}/${selectedIds.length} 个插件`,
-        },
-      });
-
-      onOperationComplete?.();
+      const result = await handleBulkOperation(operation, operationName, dispatch, selectedIds, onOperationComplete);
+      setOperationResult(result);
     } catch (error) {
-      setOperationResult({
-        success: 0,
-        failed: selectedIds.length,
-      });
-
+      setOperationResult({ success: 0, failed: selectedIds.length });
       dispatch({
         type: 'SHOW_NOTIFICATION',
         payload: {
           type: 'error',
-          title: '批量启用失败',
+          title: `批量${operationName}失败`,
           message: error instanceof Error ? error.message : 'Unknown error',
         },
       });
@@ -92,111 +109,22 @@ const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
     }
   };
 
-  /**
-   * Handle bulk disable
-   */
-  const handleBulkDisable = async () => {
-    const selectedIds = Array.from(state.selectedPluginIds);
-    if (selectedIds.length === 0) return;
+  const handleBulkEnable = () => executeBulkOperation(
+    () => pluginManagerService.bulkEnablePlugins(Array.from(state.selectedPluginIds)),
+    '启用'
+  );
 
-    setOperationInProgress(true);
-    setOperationResult(null);
+  const handleBulkDisable = () => executeBulkOperation(
+    () => pluginManagerService.bulkDisablePlugins(Array.from(state.selectedPluginIds)),
+    '禁用'
+  );
 
-    try {
-      const result = await pluginManagerService.bulkDisablePlugins(selectedIds);
+  const handleBulkUninstall = () => executeBulkOperation(
+    () => pluginManagerService.bulkUninstallPlugins(Array.from(state.selectedPluginIds)),
+    '卸载',
+    true
+  );
 
-      setOperationResult({
-        success: result.results.filter((r) => r.success).length,
-        failed: result.results.filter((r) => !r.success).length,
-      });
-
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'success',
-          title: '批量禁用完成',
-          message: `成功禁用 ${result.results.filter((r) => r.success).length}/${selectedIds.length} 个插件`,
-        },
-      });
-
-      onOperationComplete?.();
-    } catch (error) {
-      setOperationResult({
-        success: 0,
-        failed: selectedIds.length,
-      });
-
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'error',
-          title: '批量禁用失败',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
-    } finally {
-      setOperationInProgress(false);
-      clearSelection();
-    }
-  };
-
-  /**
-   * Handle bulk uninstall
-   */
-  const handleBulkUninstall = async () => {
-    const selectedIds = Array.from(state.selectedPluginIds);
-    if (selectedIds.length === 0) return;
-
-    const confirmed = confirm(
-      `确定要卸载选中的 ${selectedIds.length} 个插件吗？此操作不可撤销。`
-    );
-
-    if (!confirmed) return;
-
-    setOperationInProgress(true);
-    setOperationResult(null);
-
-    try {
-      const result = await pluginManagerService.bulkUninstallPlugins(selectedIds);
-
-      setOperationResult({
-        success: result.results.filter((r) => r.success).length,
-        failed: result.results.filter((r) => !r.success).length,
-      });
-
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'success',
-          title: '批量卸载完成',
-          message: `成功卸载 ${result.results.filter((r) => r.success).length}/${selectedIds.length} 个插件`,
-        },
-      });
-
-      onOperationComplete?.();
-    } catch (error) {
-      setOperationResult({
-        success: 0,
-        failed: selectedIds.length,
-      });
-
-      dispatch({
-        type: 'SHOW_NOTIFICATION',
-        payload: {
-          type: 'error',
-          title: '批量卸载失败',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      });
-    } finally {
-      setOperationInProgress(false);
-      clearSelection();
-    }
-  };
-
-  /**
-   * Handle select all visible
-   */
   const handleSelectAll = () => {
     if (filteredPluginIds.length > 0) {
       selectAll(filteredPluginIds);

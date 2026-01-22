@@ -86,19 +86,26 @@
   height: 24px;
   border-radius: var(--radius-sm);
   color: rgb(var(--color-text-tertiary));
-  transition: all var(--duration-fast) var(--easing-out);
+  transition: all var(--duration-fast) var(--easing-default);
   opacity: 0;
   pointer-events: none;
+  transform: scale(0.9);
 }
 
 .clear-button.visible {
   opacity: 1;
   pointer-events: auto;
+  transform: scale(1);
 }
 
 .clear-button:hover {
   background: rgb(var(--color-bg-hover));
   color: rgb(var(--color-text-primary));
+}
+
+.clear-button:focus-visible {
+  outline: var(--focus-ring-width) solid rgb(var(--color-accent-primary));
+  outline-offset: var(--focus-ring-offset);
 }
 
 .settings-button {
@@ -109,12 +116,17 @@
   height: 32px;
   border-radius: var(--radius-full);
   color: rgb(var(--color-text-secondary));
-  transition: all var(--duration-fast) var(--easing-out);
+  transition: all var(--duration-fast) var(--easing-default);
 }
 
 .settings-button:hover {
   background: rgb(var(--color-bg-hover));
   color: rgb(var(--color-text-primary));
+}
+
+.settings-button:focus-visible {
+  outline: var(--focus-ring-width) solid rgb(var(--color-accent-primary));
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* ============================================
@@ -182,7 +194,7 @@
   cursor: pointer;
   padding: var(--spacing-1) var(--spacing-2);
   border-radius: var(--radius-sm);
-  transition: all var(--duration-fast) var(--easing-out);
+  transition: all var(--duration-fast) var(--easing-default);
 }
 
 .default-section__more:hover {
@@ -212,7 +224,7 @@
   text-decoration: none;
   color: rgb(var(--color-text-primary));
   cursor: pointer;
-  transition: all var(--duration-fast) var(--easing-out);
+  transition: all var(--duration-fast) var(--easing-default);
   min-height: 72px;
   min-width: 0;
 }
@@ -246,6 +258,43 @@
   text-overflow: ellipsis;
   font-size: var(--font-size-xs);
   width: 100%;
+}
+
+/* ============================================
+   MARKETPLACE COMING SOON
+   ============================================ */
+
+.marketplace-coming-soon {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marketplace-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6) var(--spacing-8);
+  text-align: center;
+  animation: fadeIn 0.3s var(--easing-out);
+}
+
+.marketplace-placeholder__icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.marketplace-placeholder__title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: rgb(var(--color-text-primary));
+}
+
+.marketplace-placeholder__text {
+  font-size: var(--font-size-sm);
+  color: rgb(var(--color-text-tertiary));
 }
 
 /* ============================================

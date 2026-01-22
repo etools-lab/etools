@@ -125,7 +125,7 @@ const PluginManager: React.FC<PluginManagerProps> = ({
             tabIndex={0}
             style={{ display: currentView === 'marketplace' ? 'block' : 'none' }}
           >
-            <MarketplaceView />
+            <MarketplaceView isActive={currentView === 'marketplace'} />
           </div>
         )}
       </div>

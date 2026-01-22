@@ -77,6 +77,18 @@ const InstalledPluginsView: React.FC = () => {
   }, [loadPlugins]);
 
   /**
+   * 监听 pluginListVersion 变化，自动刷新插件列表
+   * 当插件安装/卸载/更新成功后触发版本号递增
+   */
+  useEffect(() => {
+    console.log('[InstalledPluginsView] pluginListVersion changed:', state.pluginListVersion);
+    // 忽略初始值 0（初始加载已由 mounted effect 处理）
+    if (state.pluginListVersion > 0) {
+      loadPlugins();
+    }
+  }, [state.pluginListVersion]);
+
+  /**
    * Handle search input change (immediate update, filtered uses debounced value)
    */
   const handleSearchChange = (value: string) => {
@@ -164,6 +176,9 @@ const InstalledPluginsView: React.FC = () => {
           message: `插件 "${plugin.manifest.name}" 已成功卸载`,
         },
       });
+
+      // 触发插件列表版本更新，通知其他组件刷新
+      dispatch({ type: 'INCREMENT_PLUGIN_VERSION' });
     } catch (error) {
       console.error('[InstalledPluginsView] Uninstall failed:', error);
       dispatch({
@@ -269,7 +284,7 @@ const InstalledPluginsView: React.FC = () => {
       const { pluginLoader } = await import('../../services/pluginLoader');
       try {
         await pluginLoader.unloadPlugin(pluginId);
-        await pluginLoader.loadPlugin(plugin);
+        await pluginLoader.loadInstalledPlugins();
       } catch (err) {
         console.warn('[InstalledPluginsView] Failed to reload plugin:', err);
       }

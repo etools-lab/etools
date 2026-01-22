@@ -129,9 +129,16 @@ fn get_plugin_installation_time(path: &PathBuf) -> Result<i64, String> {
 
 /// Get plugin health for a plugin
 fn get_plugin_health_for(plugin_id: &str, plugin_path: &PathBuf) -> Result<PluginHealth, String> {
-    // Check if entry point exists
-    let manifest_path = plugin_path.join("plugin.json");
-    let manifest = read_plugin_manifest(&manifest_path)?;
+    // Try to read manifest from package.json (npm plugins) or plugin.json (legacy plugins)
+    let manifest = match read_npm_plugin_manifest(plugin_path) {
+        Ok(m) => m,
+        Err(_) => {
+            // Fallback to plugin.json for legacy plugins
+            let manifest_path = plugin_path.join("plugin.json");
+            read_plugin_manifest(&manifest_path)?
+        }
+    };
+
     let entry_path = plugin_path.join(&manifest.entry);
 
     let status = if entry_path.exists() {
@@ -154,6 +161,70 @@ fn read_plugin_manifest(path: &PathBuf) -> Result<PluginManifest, String> {
         .map_err(|e| format!("Failed to read manifest: {}", e))?;
     serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse manifest: {}", e))
+}
+
+/// Read plugin manifest from npm package.json using ETP protocol
+/// Returns Err if package.json doesn't exist or lacks etools field
+fn read_npm_plugin_manifest(plugin_path: &PathBuf) -> Result<PluginManifest, String> {
+    use crate::models::plugin_metadata::EtoolsMetadata;
+
+    println!("[Plugin] Reading npm plugin manifest from: {:?}", plugin_path);
+
+    let package_json_path = plugin_path.join("package.json");
+    if !package_json_path.exists() {
+        println!("[Plugin] ⚠️  package.json not found at: {:?}", package_json_path);
+        return Err(format!("package.json not found at {:?}", package_json_path));
+    }
+
+    let content = fs::read_to_string(&package_json_path)
+        .map_err(|e| {
+            println!("[Plugin] ⚠️  Failed to read package.json: {}", e);
+            format!("Failed to read package.json: {}", e)
+        })?;
+
+    let package_data: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| {
+            println!("[Plugin] ⚠️  Failed to parse package.json: {}", e);
+            format!("Failed to parse package.json: {}", e)
+        })?;
+
+    // Parse ETP metadata
+    let metadata = EtoolsMetadata::from_package_json(&package_data)
+        .map_err(|e| {
+            println!("[Plugin] ⚠️  ETP validation failed: {}", e);
+            format!("ETP validation failed: {}", e)
+        })?;
+
+    println!("[Plugin] ✅ Successfully parsed ETP metadata for: {}", metadata.display_name);
+
+    // Get entry point
+    let entry_point = package_data["main"]
+        .as_str()
+        .unwrap_or("index.js")
+        .to_string();
+
+    // Convert EtoolsMetadata to PluginManifest
+    Ok(PluginManifest {
+        name: metadata.display_name,
+        version: package_data["version"]
+            .as_str()
+            .unwrap_or("0.0.0")
+            .to_string(),
+        description: metadata.description.unwrap_or_default(),
+        author: package_data["author"]
+            .as_str()
+            .map(|s| s.to_string()),
+        permissions: metadata.permissions,
+        entry: entry_point,
+        triggers: metadata.triggers
+            .iter()
+            .map(|keyword| PluginTrigger {
+                keyword: keyword.clone(),
+                description: String::new(),
+                hotkey: None,
+            })
+            .collect(),
+    })
 }
 
 /// Validate plugin manifest (T096)
@@ -449,28 +520,6 @@ pub fn uninstall_plugin(
     Ok(())
 }
 
-/// Enable a plugin (T044)
-#[tauri::command]
-pub fn enable_plugin(
-    handle: AppHandle,
-    plugin_id: String,
-) -> Result<(), String> {
-    let mut state = load_plugin_state(&handle)?;
-    state.insert(plugin_id, true);
-    save_plugin_state(&handle, &state)
-}
-
-/// Disable a plugin (T044)
-#[tauri::command]
-pub fn disable_plugin(
-    handle: AppHandle,
-    plugin_id: String,
-) -> Result<(), String> {
-    let mut state = load_plugin_state(&handle)?;
-    state.insert(plugin_id, false);
-    save_plugin_state(&handle, &state)
-}
-
 /// Get plugin manifest
 #[tauri::command]
 pub fn get_plugin_manifest(
@@ -757,7 +806,7 @@ pub fn check_plugin_health(
 
 /// Bulk enable plugins
 #[tauri::command]
-pub fn bulk_enable_plugins(
+pub async fn bulk_enable_plugins(
     handle: AppHandle,
     plugin_ids: Vec<String>,
 ) -> Result<BulkOperation, String> {
@@ -765,8 +814,8 @@ pub fn bulk_enable_plugins(
     let mut results = vec![];
 
     for plugin_id in &plugin_ids {
-        let result = match enable_plugin(handle.clone(), plugin_id.clone()) {
-            Ok(()) => crate::models::plugin::BulkOperationResult {
+        let result = match enable_plugin(handle.clone(), plugin_id.clone()).await {
+            Ok(_) => crate::models::plugin::BulkOperationResult {
                 plugin_id: plugin_id.clone(),
                 success: true,
                 error: None,
@@ -800,7 +849,7 @@ pub fn bulk_enable_plugins(
 
 /// Bulk disable plugins
 #[tauri::command]
-pub fn bulk_disable_plugins(
+pub async fn bulk_disable_plugins(
     handle: AppHandle,
     plugin_ids: Vec<String>,
 ) -> Result<BulkOperation, String> {
@@ -808,8 +857,8 @@ pub fn bulk_disable_plugins(
     let mut results = vec![];
 
     for plugin_id in &plugin_ids {
-        let result = match disable_plugin(handle.clone(), plugin_id.clone()) {
-            Ok(()) => crate::models::plugin::BulkOperationResult {
+        let result = match disable_plugin(handle.clone(), plugin_id.clone()).await {
+            Ok(_) => crate::models::plugin::BulkOperationResult {
                 plugin_id: plugin_id.clone(),
                 success: true,
                 error: None,
@@ -1097,7 +1146,7 @@ pub async fn plugin_extract_package_from_buffer(
 
 /// Enable a plugin
 #[tauri::command]
-pub async fn plugin_enable(handle: AppHandle, plugin_id: String) -> Result<Plugin, String> {
+pub async fn enable_plugin(handle: AppHandle, plugin_id: String) -> Result<Plugin, String> {
     let plugins_dir = ensure_plugins_dir(&handle)?;
 
     // Find plugin path (tries direct and npm-style locations)
@@ -1106,10 +1155,16 @@ pub async fn plugin_enable(handle: AppHandle, plugin_id: String) -> Result<Plugi
     // Update enabled state
     save_plugin_enabled_state(&handle, &plugin_id, true)?;
 
-    // Load and return updated plugin
-    let manifest_path = actual_path.join("plugin.json");
-    let manifest = read_plugin_manifest(&manifest_path)
-        .map_err(|e| format!("Failed to read manifest: {}", e))?;
+    // Try to read manifest from plugin.json (legacy plugins) or package.json (npm plugins)
+    let manifest = match read_npm_plugin_manifest(&actual_path) {
+        Ok(m) => m,
+        Err(e) => {
+            // Fallback to plugin.json for legacy plugins
+            let manifest_path = actual_path.join("plugin.json");
+            read_plugin_manifest(&manifest_path)
+                .map_err(|e| format!("Failed to read manifest: {}", e))?
+        }
+    };
 
     let health = get_plugin_health_for(&plugin_id, &actual_path)?;
     let stats = load_plugin_usage_stats(&handle)?
@@ -1142,7 +1197,7 @@ pub async fn plugin_enable(handle: AppHandle, plugin_id: String) -> Result<Plugi
 
 /// Disable a plugin
 #[tauri::command]
-pub async fn plugin_disable(handle: AppHandle, plugin_id: String) -> Result<Plugin, String> {
+pub async fn disable_plugin(handle: AppHandle, plugin_id: String) -> Result<Plugin, String> {
     let plugins_dir = ensure_plugins_dir(&handle)?;
 
     // Find plugin path (tries direct and npm-style locations)
@@ -1151,10 +1206,16 @@ pub async fn plugin_disable(handle: AppHandle, plugin_id: String) -> Result<Plug
     // Update enabled state
     save_plugin_enabled_state(&handle, &plugin_id, false)?;
 
-    // Load and return updated plugin
-    let manifest_path = actual_path.join("plugin.json");
-    let manifest = read_plugin_manifest(&manifest_path)
-        .map_err(|e| format!("Failed to read manifest: {}", e))?;
+    // Try to read manifest from plugin.json (legacy plugins) or package.json (npm plugins)
+    let manifest = match read_npm_plugin_manifest(&actual_path) {
+        Ok(m) => m,
+        Err(e) => {
+            // Fallback to plugin.json for legacy plugins
+            let manifest_path = actual_path.join("plugin.json");
+            read_plugin_manifest(&manifest_path)
+                .map_err(|e| format!("Failed to read manifest: {}", e))?
+        }
+    };
 
     let health = get_plugin_health_for(&plugin_id, &actual_path)?;
     let stats = load_plugin_usage_stats(&handle)?
@@ -1198,13 +1259,41 @@ pub async fn plugin_uninstall(handle: AppHandle, plugin_id: String) -> Result<()
         return Err(format!("不能卸载核心插件: {}", plugin_id));
     }
 
-    // Use npm uninstall (matches new installation approach)
     let plugins_dir = ensure_plugins_dir(&handle)?;
 
-    println!("[plugin_uninstall] Running: npm uninstall {}", plugin_id);
+    // 1. 先读取插件的 package.json 获取真实的包名
+    // 因为 plugin_id 可能是短 ID (如 "devtools")
+    // 而 package.json 中记录的可能是完整包名 (如 "@etools-plugin/devtools")
+    let actual_package_name = {
+        // 尝试从 node_modules 中读取插件的 package.json
+        let npm_package_path = plugins_dir
+            .join("node_modules")
+            .join("@etools-plugin")
+            .join(&plugin_id)
+            .join("package.json");
+
+        if npm_package_path.exists() {
+            let content = std::fs::read_to_string(&npm_package_path)
+                .map_err(|e| format!("Failed to read plugin package.json: {}", e))?;
+            let data: serde_json::Value = serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse plugin package.json: {}", e))?;
+            data["name"]
+                .as_str()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("@etools-plugin/{}", plugin_id))
+        } else {
+            // 如果找不到，使用默认格式
+            format!("@etools-plugin/{}", plugin_id)
+        }
+    };
+
+    println!("[plugin_uninstall] Actual package name: {}", actual_package_name);
+
+    // 2. Use npm uninstall (matches new installation approach)
+    println!("[plugin_uninstall] Running: npm uninstall {}", actual_package_name);
     let output = Command::new("npm")
-        .args(["uninstall", &plugin_id])
-        .current_dir(&plugins_dir)  // Use current_dir like install
+        .args(["uninstall", &actual_package_name])
+        .current_dir(&plugins_dir)
         .output()
         .map_err(|e| format!("Failed to execute npm uninstall: {}", e))?;
 
@@ -1217,6 +1306,44 @@ pub async fn plugin_uninstall(handle: AppHandle, plugin_id: String) -> Result<()
 
     // Remove plugin state
     remove_plugin_state(&handle, &plugin_id)?;
+
+    // 3. Update package.json - remove plugin from dependencies
+    let package_json_path = plugins_dir.join("package.json");
+
+    if package_json_path.exists() {
+        let package_json_content = std::fs::read_to_string(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json: {}", e))?;
+
+        let mut package_data: serde_json::Value = serde_json::from_str(&package_json_content)
+            .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+        // Ensure dependencies is always an object
+        if package_data["dependencies"].is_null() {
+            package_data["dependencies"] = serde_json::json!({});
+        }
+
+        // Remove from dependencies using the actual package name
+        let removed = if let Some(dependencies) = package_data["dependencies"].as_object_mut() {
+            dependencies.remove(&actual_package_name).is_some()
+        } else {
+            false
+        };
+
+        if removed {
+            println!("[plugin_uninstall] ✅ Removed {} from package.json dependencies", actual_package_name);
+        } else {
+            println!("[plugin_uninstall] ⚠️  {} not found in dependencies", actual_package_name);
+        }
+
+        // Write back to package.json
+        let updated_json = serde_json::to_string_pretty(&package_data)
+            .map_err(|e| format!("Failed to serialize package.json: {}", e))?;
+
+        std::fs::write(&package_json_path, updated_json)
+            .map_err(|e| format!("Failed to write package.json: {}", e))?;
+
+        println!("[plugin_uninstall] ✅ package.json updated");
+    }
 
     Ok(())
 }

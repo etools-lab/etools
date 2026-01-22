@@ -61,13 +61,18 @@
   font-weight: var(--font-weight-medium);
   color: rgb(var(--color-text-secondary));
   cursor: pointer;
-  transition: all var(--duration-fast) var(--easing-out);
+  transition: all var(--duration-fast) var(--easing-default);
   position: relative;
 }
 
 .settings-tab:hover {
   background: rgb(var(--color-bg-hover));
   color: rgb(var(--color-text-primary));
+}
+
+.settings-tab:focus-visible {
+  outline: var(--focus-ring-width) solid rgb(var(--color-accent-primary));
+  outline-offset: var(--focus-ring-offset);
 }
 
 .settings-tab.active {

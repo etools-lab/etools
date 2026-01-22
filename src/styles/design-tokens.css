@@ -16,7 +16,7 @@
 
   --color-text-primary: 15, 23, 42;
   --color-text-secondary: 100, 116, 139;
-  --color-text-tertiary: 148, 163, 184;
+  --color-text-tertiary: 120, 130, 150;
   --color-text-inverse: 255, 255, 255;
 
   --color-border-subtle: 226, 232, 240;
@@ -191,7 +191,7 @@
 
     --color-text-primary: 241, 245, 249;
     --color-text-secondary: 148, 163, 184;
-    --color-text-tertiary: 100, 116, 139;
+    --color-text-tertiary: 130, 145, 165;
 
     --color-border-subtle: 51, 65, 85;
     --color-border-default: 71, 85, 105;

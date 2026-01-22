@@ -20,10 +20,17 @@ interface CategoryInfo {
   icon: string;
 }
 
+interface MarketplaceViewProps {
+  /**
+   * Whether this view is currently active/visible
+   */
+  isActive?: boolean;
+}
+
 /**
  * MarketplaceView - Plugin marketplace interface
  */
-const MarketplaceView: React.FC = () => {
+const MarketplaceView: React.FC<MarketplaceViewProps> = ({ isActive = false }) => {
   const dispatch = usePluginDispatch();
   const state = usePluginState();
 
@@ -75,14 +82,18 @@ const MarketplaceView: React.FC = () => {
     }
   }, [dispatch]);
 
-  /**
-   * 加载已安装插件列表
-   */
+   /**
+    * 加载已安装插件列表
+    */
   const loadInstalledPlugins = useCallback(async () => {
     try {
       const installedPlugins = await pluginManagerService.getInstalledPlugins();
-      // 使用 name (显示名称) 而不是 entry_point (npm 包名) 来匹配
-      const installedNames = new Set(installedPlugins.map((p) => p.name));
+      // 使用 packageName (npm 包名) 来匹配
+      const installedNames = new Set(
+        installedPlugins
+          .map((p) => p.packageName)
+          .filter((name): name is string => name !== undefined)
+      );
       setInstalledPluginNames(installedNames);
       console.log(`[Marketplace] Found ${installedNames.size} installed plugins`);
     } catch (err) {
@@ -97,6 +108,26 @@ const MarketplaceView: React.FC = () => {
     loadMarketplacePlugins();
     loadInstalledPlugins();
   }, [loadMarketplacePlugins, loadInstalledPlugins]);
+
+  /**
+   * 当视图激活时重新加载已安装插件列表
+   * 用于确保在其他地方(如已安装视图)卸载插件后状态同步
+   */
+  useEffect(() => {
+    if (isActive) {
+      console.log('[Marketplace] View activated, reloading installed plugins...');
+      loadInstalledPlugins();
+    }
+  }, [isActive, loadInstalledPlugins]);
+
+  /**
+   * 监听 pluginListVersion 变化，自动刷新已安装插件列表
+   * 当插件安装/卸载成功后会触发这个版本号递增
+   */
+  useEffect(() => {
+    console.log('[Marketplace] pluginListVersion changed:', state.pluginListVersion);
+    loadInstalledPlugins();
+  }, [state.pluginListVersion]); // 只依赖版本号，不依赖 loadInstalledPlugins
 
   /**
    * 过滤插件（分类 + 搜索）
@@ -168,8 +199,8 @@ const MarketplaceView: React.FC = () => {
         },
       });
 
-      // 重新加载已安装插件列表
-      await loadInstalledPlugins();
+      // 触发插件列表版本更新，通知其他组件刷新
+      dispatch({ type: 'INCREMENT_PLUGIN_VERSION' });
 
       // 刷新市场插件列表（更新安装状态）
       setAllPlugins((prev) =>

@@ -20,8 +20,7 @@ use cmds::plugins::{
     plugin_validate_package, plugin_extract_package, plugin_install, plugin_get_install_status,
     plugin_cancel_install,
     plugin_validate_package_from_buffer, plugin_extract_package_from_buffer,
-    // Enable/Disable/Uninstall commands (US3/US4)
-    plugin_enable, plugin_disable, plugin_uninstall,
+    plugin_uninstall,
     // Plugin abbreviation commands
     get_plugin_abbreviations, save_plugin_abbreviations,
     set_plugin_abbreviation, remove_plugin_abbreviation,
@@ -34,6 +33,7 @@ use cmds::window::{get_screen_info, resize_window_smart};
 use cmds::performance::{PerformanceState, get_performance_metrics, check_performance_requirements, record_performance_event, get_average_search_time};
 use cmds::abbreviation::{get_abbreviation_config, save_abbreviation_config, add_abbreviation, update_abbreviation, delete_abbreviation, export_abbreviation_config, import_abbreviation_config};
 use cmds::debug::{write_debug_log, clear_debug_log, read_debug_log};
+use services::{get_log_file_path, read_log_file, clear_log_file};
 
 /// Get the default global hotkey for the current platform.
 /// Simplifies duplicate default hotkey logic throughout the codebase.
@@ -231,6 +231,29 @@ fn hide_plugin_popup(_app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// ============================================================================
+// Backend Log Commands
+// ============================================================================
+
+/// 获取后端日志文件路径
+#[tauri::command]
+fn get_backend_log_path(handle: tauri::AppHandle) -> Result<String, String> {
+    get_log_file_path(&handle)
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+/// 读取后端日志文件
+#[tauri::command]
+fn read_backend_log(handle: tauri::AppHandle, limit: Option<usize>) -> Result<String, String> {
+    read_log_file(&handle, limit)
+}
+
+/// 清除后端日志文件
+#[tauri::command]
+fn clear_backend_log(handle: tauri::AppHandle) -> Result<(), String> {
+    clear_log_file(&handle)
+}
+
 // Hide window
 #[tauri::command]
 fn hide_window(window: tauri::Window) -> Result<(), String> {
@@ -278,10 +301,21 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            // 初始化日志系统（必须在最开始）
+            if let Err(e) = services::init_logger(app.handle()) {
+                eprintln!("Failed to initialize logger: {}", e);
+            }
+
+            log::info!("Application starting up");
+            log::info!("App data dir: {:?}", app.path().app_data_dir());
+            log::info!("App config dir: {:?}", app.path().app_config_dir());
+
             // Initialize app monitor state
             app.manage(AppState {
                 app_monitor: std::sync::Mutex::new(services::app_monitor::AppMonitor::new()),
             });
+
+            log::debug!("App monitor state initialized");
 
             // Initialize search state
             app.manage(SearchState {
@@ -307,6 +341,12 @@ pub fn run() {
             // Get the main window
             let window = app.get_webview_window("main").unwrap();
 
+            // Open DevTools automatically in development mode
+            #[cfg(debug_assertions)]
+            {
+                window.open_devtools();
+            }
+
             // Load hotkey from settings or use default
             let settings_path = app.path().app_config_dir()
                 .map_err(|e| format!("Failed to get config dir: {}", e))?;
@@ -326,10 +366,11 @@ pub fn run() {
                 default_hotkey()
             };
 
-            println!("[GlobalShortcut] Registering hotkey: {}", hotkey_str);
+            log::info!("Loading global hotkey from settings: {}", hotkey_str);
 
             // Parse hotkey string and register
             let shortcut = parse_hotkey(&hotkey_str)?;
+            log::info!("Parsed hotkey: {:?} from string: {}", shortcut, hotkey_str);
 
             use std::sync::atomic::{AtomicBool, Ordering};
             use std::sync::Arc;
@@ -340,16 +381,16 @@ pub fn run() {
             app.global_shortcut().on_shortcut(shortcut, move |_, _, _| {
                 // Prevent rapid toggle
                 if is_toggling.swap(true, Ordering::SeqCst) {
-                    println!("[GlobalShortcut] Ignoring rapid toggle");
+                    log::debug!("Global shortcut: Ignoring rapid toggle");
                     return;
                 }
 
                 let is_visible = window_clone.is_visible().unwrap_or(false);
-                println!("[GlobalShortcut] Toggle triggered, window visible: {}", is_visible);
+                log::debug!("Global shortcut: Toggle triggered, window visible: {}", is_visible);
 
                 if is_visible {
                     let _ = window_clone.hide();
-                    println!("[GlobalShortcut] Window hidden");
+                    log::info!("Window hidden via global shortcut");
                 } else {
                     // 显示窗口前先定位到鼠标所在屏幕的中心偏上位置
                     let window_width = 800u32;
@@ -548,9 +589,6 @@ pub fn run() {
             plugin_cancel_install,
             plugin_validate_package_from_buffer,
             plugin_extract_package_from_buffer,
-            // Enable/Disable/Uninstall commands (US3/US4)
-            plugin_enable,
-            plugin_disable,
             plugin_uninstall,
             // Plugin abbreviation commands
             get_plugin_abbreviations,
@@ -594,6 +632,11 @@ pub fn run() {
             write_debug_log,
             clear_debug_log,
             read_debug_log,
+            // Backend log commands
+            get_backend_log_path,
+            read_backend_log,
+            clear_backend_log,
+            // Abbreviation commands
             get_abbreviation_config,
             save_abbreviation_config,
             add_abbreviation,

@@ -166,6 +166,11 @@ pub fn marketplace_uninstall(
         let mut package_data: serde_json::Value = serde_json::from_str(&package_json_content)
             .map_err(|e| format!("Failed to parse package.json: {}", e))?;
 
+        // Ensure dependencies is always an object
+        if package_data["dependencies"].is_null() {
+            package_data["dependencies"] = serde_json::json!({});
+        }
+
         // 从 dependencies 中移除插件
         if let Some(dependencies) = package_data["dependencies"].as_object_mut() {
             dependencies.remove(&package_name);
